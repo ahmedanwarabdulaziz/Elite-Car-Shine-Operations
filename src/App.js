@@ -40,7 +40,19 @@ function App() {
     return () => unsubscribe();
   }, []);
 
-  if (loading) return <div>Loading...</div>;
+  if (loading) return (
+    <div style={{ 
+      display: 'flex', 
+      justifyContent: 'center', 
+      alignItems: 'center', 
+      height: '100vh',
+      background: '#f5f5f5',
+      fontSize: '18px'
+    }}>
+      Loading Elite Car Detailing System...
+    </div>
+  );
+  
   if (!user) return <LoginPage />;
 
   return (
