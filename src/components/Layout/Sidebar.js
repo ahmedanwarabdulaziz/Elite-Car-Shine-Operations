@@ -57,6 +57,7 @@ const menuItems = [
   { text: 'Invoice Reports', icon: <AnalyticsIcon />, path: '/invoice-reports' },
   { text: 'Finance', icon: <FinanceIcon />, path: '/finance' },
   { text: 'Employees', icon: <EmployeeIcon />, path: '/employees' },
+  { text: 'Departments', icon: <BusinessIcon />, path: '/departments' },
   { text: 'Analytics', icon: <AnalyticsIcon />, path: '/analytics' },
   { text: 'Settings', icon: <SettingsIcon />, path: '/settings' },
   { text: 'Work Order Statuses', icon: <PaletteIcon />, path: '/work-order-statuses' },

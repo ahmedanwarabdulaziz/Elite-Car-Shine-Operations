@@ -2,14 +2,15 @@
 <html lang="en">
   <head>
     <meta charset="utf-8" />
-    <link rel="icon" href="%PUBLIC_URL%/favicon.ico" />
-    <meta name="viewport" content="width=device-width, initial-scale=1" />
-    <meta name="theme-color" content="#000000" />
+    <meta name="viewport" content="width=device-width, initial-scale=1, maximum-scale=1, user-scalable=no" />
+    <meta name="theme-color" content="#1976d2" />
+    <meta name="apple-mobile-web-app-capable" content="yes" />
+    <meta name="apple-mobile-web-app-status-bar-style" content="default" />
+    <meta name="apple-mobile-web-app-title" content="Elite Car Shine" />
     <meta
       name="description"
-      content="Elite Car Detailing Business Management System"
+      content="Elite Car Shine Employee Portal - Mobile access for field workers"
     />
-    <link rel="apple-touch-icon" href="%PUBLIC_URL%/logo192.png" />
     <link rel="manifest" href="%PUBLIC_URL%/manifest.json" />
     <link
       rel="stylesheet"
@@ -19,10 +20,72 @@
       rel="stylesheet"
       href="https://fonts.googleapis.com/icon?family=Material+Icons"
     />
-    <title>Elite Car Detailing - Business Management</title>
+    <title>Elite Car Shine - Employee Portal</title>
   </head>
   <body>
     <noscript>You need to enable JavaScript to run this app.</noscript>
     <div id="root"></div>
+    
+    <script>
+      // Register Service Worker for PWA functionality
+      if ('serviceWorker' in navigator) {
+        window.addEventListener('load', () => {
+          navigator.serviceWorker.register('/sw.js')
+            .then((registration) => {
+              console.log('SW registered: ', registration);
+            })
+            .catch((registrationError) => {
+              console.log('SW registration failed: ', registrationError);
+            });
+        });
+      }
+      
+      // Handle PWA install prompt
+      let deferredPrompt;
+      window.addEventListener('beforeinstallprompt', (e) => {
+        e.preventDefault();
+        deferredPrompt = e;
+        
+        // Show install button or banner
+        const installButton = document.createElement('button');
+        installButton.textContent = 'Install App';
+        installButton.style.cssText = `
+          position: fixed;
+          bottom: 20px;
+          right: 20px;
+          background: #1976d2;
+          color: white;
+          border: none;
+          padding: 12px 20px;
+          border-radius: 8px;
+          font-size: 14px;
+          cursor: pointer;
+          box-shadow: 0 4px 12px rgba(0,0,0,0.3);
+          z-index: 1000;
+        `;
+        
+        installButton.addEventListener('click', () => {
+          deferredPrompt.prompt();
+          deferredPrompt.userChoice.then((choiceResult) => {
+            if (choiceResult.outcome === 'accepted') {
+              console.log('User accepted the install prompt');
+            } else {
+              console.log('User dismissed the install prompt');
+            }
+            deferredPrompt = null;
+            installButton.remove();
+          });
+        });
+        
+        document.body.appendChild(installButton);
+        
+        // Auto-hide after 10 seconds
+        setTimeout(() => {
+          if (installButton.parentNode) {
+            installButton.remove();
+          }
+        }, 10000);
+      });
+    </script>
   </body>
 </html> 

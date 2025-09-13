@@ -1,7 +1,7 @@
 import React, { useState } from 'react';
 import { signInWithEmailAndPassword } from 'firebase/auth';
 import { auth } from '../firebase/config';
-import { Box, Button, TextField, Typography, Paper } from '@mui/material';
+import { Box, Button, TextField, Typography, Paper, Link, Divider } from '@mui/material';
 
 const LoginPage = () => {
   const [email, setEmail] = useState('');
@@ -25,7 +25,7 @@ const LoginPage = () => {
   return (
     <Box display="flex" justifyContent="center" alignItems="center" minHeight="100vh" bgcolor="#f5f5f5">
       <Paper elevation={3} sx={{ p: 4, minWidth: 320 }}>
-        <Typography variant="h5" mb={2} align="center">Sign In</Typography>
+        <Typography variant="h5" mb={2} align="center">Admin Sign In</Typography>
         <form onSubmit={handleSubmit}>
           <TextField
             label="Email"
@@ -56,6 +56,26 @@ const LoginPage = () => {
           >
             {loading ? 'Signing in...' : 'Sign In'}
           </Button>
+          
+          <Divider sx={{ my: 2 }}>
+            <Typography variant="body2" color="textSecondary">
+              Employee Login
+            </Typography>
+          </Divider>
+          
+          <Typography variant="body2" color="textSecondary" align="center">
+            Are you an employee? 
+            <Link 
+              href="/employee/login" 
+              sx={{ ml: 1 }}
+              onClick={(e) => {
+                e.preventDefault();
+                window.location.href = '/employee/login';
+              }}
+            >
+              Click here to login
+            </Link>
+          </Typography>
         </form>
       </Paper>
     </Box>

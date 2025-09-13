@@ -48,6 +48,7 @@ import {
 } from '@mui/icons-material';
 import { collection, query, orderBy, onSnapshot, where, updateDoc, doc, serverTimestamp, addDoc } from 'firebase/firestore';
 import { db } from '../../firebase/config';
+import WorkerAssignment from '../../components/WorkOrder/WorkerAssignment';
 
 const WorkOrderDashboard = ({ onNavigateToCreate, onViewWorkOrder, onEditWorkOrder, onDeleteWorkOrder }) => {
   const [workOrders, setWorkOrders] = useState([]);
@@ -569,6 +570,22 @@ const WorkOrderDashboard = ({ onNavigateToCreate, onViewWorkOrder, onEditWorkOrd
                         </Typography>
                       </Box>
                     </CardContent>
+                    
+                    {/* Worker Assignment Section */}
+                    <Box sx={{ px: 2, pb: 1 }}>
+                      <WorkerAssignment 
+                        workOrder={workOrder} 
+                        onUpdate={() => {
+                          // Refresh work orders data
+                          const q = query(collection(db, 'workOrders'), orderBy('createdAt', 'desc'));
+                          onSnapshot(q, (snapshot) => {
+                            const data = snapshot.docs.map(doc => ({ id: doc.id, ...doc.data() }));
+                            setWorkOrders(data);
+                          });
+                        }}
+                      />
+                    </Box>
+                    
                     {/* Total - Highlighted */}
                     <Box sx={{ display: 'flex', alignItems: 'center', justifyContent: 'center', bgcolor: '#fffde7', borderBottomRightRadius: 12, borderTop: '1px solid #ffe082', py: 1.5, mt: 'auto' }}>
                       <ReceiptIcon sx={{ mr: 1, color: 'success.main', fontSize: 28 }} />
