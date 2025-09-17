@@ -71,10 +71,32 @@ const EmployeeLayout = ({ children }) => {
     setAnchorEl(null);
   };
 
-  const handleLogout = () => {
-    sessionStorage.removeItem('employeeUser');
-    showSuccess('Logged out successfully');
-    navigate('/employee/login');
+  const handleLogout = async () => {
+    try {
+      // Clear employee session
+      sessionStorage.removeItem('employeeUser');
+      
+      // Also clear any Firebase auth (in case admin was logged in before)
+      try {
+        const { signOut } = await import('firebase/auth');
+        const { auth } = await import('../../firebase/config');
+        await signOut(auth);
+      } catch (firebaseError) {
+        // Firebase auth might not be available, that's okay
+        console.log('Firebase auth not available for logout');
+      }
+      
+      showSuccess('Logged out successfully');
+      navigate('/employee/login');
+    } catch (error) {
+      console.error('Logout error:', error);
+      // Fallback: clear all data and redirect
+      sessionStorage.clear();
+      localStorage.clear();
+      showSuccess('Logged out successfully');
+      navigate('/employee/login');
+    }
+    
     handleMenuClose();
   };
 

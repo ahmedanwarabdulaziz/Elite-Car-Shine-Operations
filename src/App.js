@@ -34,73 +34,6 @@ import LoginPage from './pages/LoginPage';
 import { auth } from './firebase/config';
 import { onAuthStateChanged } from 'firebase/auth';
 
-function App() {
-  const [user, setUser] = useState(null);
-  const [loading, setLoading] = useState(true);
-
-  useEffect(() => {
-    const unsubscribe = onAuthStateChanged(auth, (user) => {
-      setUser(user);
-      setLoading(false);
-    });
-    return () => unsubscribe();
-  }, []);
-
-  if (loading) return (
-    <div style={{ 
-      display: 'flex', 
-      justifyContent: 'center', 
-      alignItems: 'center', 
-      height: '100vh',
-      background: '#f5f5f5',
-      fontSize: '18px'
-    }}>
-      Loading Elite Car Detailing System...
-    </div>
-  );
-  
-  if (!user) return <LoginPage />;
-
-  return (
-    <ThemeProvider theme={theme}>
-      <CssBaseline />
-      <NotificationProvider>
-        <Router future={{ v7_startTransition: true, v7_relativeSplatPath: true }}>
-          <MainLayout>
-            <Routes>
-              <Route path="/" element={<DashboardPage />} />
-              <Route path="/categories" element={<CategoriesPage />} />
-              <Route path="/vehicle-categories" element={<VehicleCategoriesPage />} />
-              <Route path="/services" element={<ServicesPage />} />
-              <Route path="/bundles" element={<BundlesPage />} />
-              <Route path="/payment-methods" element={<PaymentMethodsPage />} />
-              <Route path="/taxes" element={<TaxesPage />} />
-              <Route path="/tax-assignment" element={<TaxAssignmentPage />} />
-              <Route path="/customer-fields" element={<CustomerFieldsPage />} />
-              <Route path="/vehicle-fields" element={<VehicleFieldsPage />} />
-              <Route path="/corporate-customers" element={<CorporateCustomersPage />} />
-              <Route path="/individual-customers" element={<IndividualCustomersPage />} />
-              <Route path="/create-customer" element={<CreateCustomerPage />} />
-              <Route path="/work-orders" element={<WorkOrderPage />} />
-              <Route path="/work-orders-dashboard" element={<WorkOrderDashboardPage />} />
-              <Route path="/invoices" element={<div>Invoices Page (Coming Soon)</div>} />
-              <Route path="/finance" element={<div>Finance Page (Coming Soon)</div>} />
-              <Route path="/employees" element={<EmployeesPage />} />
-              <Route path="/departments" element={<DepartmentsPage />} />
-              <Route path="/analytics" element={<div>Analytics Page (Coming Soon)</div>} />
-              <Route path="/settings" element={<div>Settings Page (Coming Soon)</div>} />
-              <Route path="/invoice-reports" element={<InvoiceReportsPage />} />
-              <Route path="/invoice-reports/lifecycle" element={<InvoiceLifecyclePage />} />
-              <Route path="/work-order-statuses" element={<WorkOrderStatusesPage />} />
-              <Route path="/issued-invoices" element={<IssuedInvoicesPage />} />
-            </Routes>
-          </MainLayout>
-        </Router>
-      </NotificationProvider>
-    </ThemeProvider>
-  );
-}
-
 // Component to handle routing based on URL and user state
 function AppRouter() {
   const location = useLocation();
@@ -252,6 +185,7 @@ function AppRouter() {
 
 // Main App with routing logic
 function MainApp() {
+
   return (
     <ThemeProvider theme={theme}>
       <CssBaseline />

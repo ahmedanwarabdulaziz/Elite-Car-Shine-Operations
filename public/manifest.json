@@ -3,14 +3,52 @@
   "name": "Elite Car Shine - Employee Portal",
   "icons": [
     {
-      "src": "data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 100 100'%3E%3Ctext y='.9em' font-size='90'%3E🚗%3C/text%3E%3C/svg%3E",
-      "sizes": "192x192",
-      "type": "image/svg+xml"
+      "src": "data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 100 100'%3E%3Crect width='100' height='100' fill='%231976d2' rx='20'/%3E%3Ctext x='50' y='60' text-anchor='middle' fill='white' font-size='50'%3E🚗%3C/text%3E%3C/svg%3E",
+      "sizes": "72x72",
+      "type": "image/svg+xml",
+      "purpose": "any"
     },
     {
-      "src": "data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 100 100'%3E%3Ctext y='.9em' font-size='90'%3E🚗%3C/text%3E%3C/svg%3E",
+      "src": "data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 100 100'%3E%3Crect width='100' height='100' fill='%231976d2' rx='20'/%3E%3Ctext x='50' y='60' text-anchor='middle' fill='white' font-size='50'%3E🚗%3C/text%3E%3C/svg%3E",
+      "sizes": "96x96",
+      "type": "image/svg+xml",
+      "purpose": "any"
+    },
+    {
+      "src": "data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 100 100'%3E%3Crect width='100' height='100' fill='%231976d2' rx='20'/%3E%3Ctext x='50' y='60' text-anchor='middle' fill='white' font-size='50'%3E🚗%3C/text%3E%3C/svg%3E",
+      "sizes": "128x128",
+      "type": "image/svg+xml",
+      "purpose": "any"
+    },
+    {
+      "src": "data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 100 100'%3E%3Crect width='100' height='100' fill='%231976d2' rx='20'/%3E%3Ctext x='50' y='60' text-anchor='middle' fill='white' font-size='50'%3E🚗%3C/text%3E%3C/svg%3E",
+      "sizes": "144x144",
+      "type": "image/svg+xml",
+      "purpose": "any"
+    },
+    {
+      "src": "data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 100 100'%3E%3Crect width='100' height='100' fill='%231976d2' rx='20'/%3E%3Ctext x='50' y='60' text-anchor='middle' fill='white' font-size='50'%3E🚗%3C/text%3E%3C/svg%3E",
+      "sizes": "152x152",
+      "type": "image/svg+xml",
+      "purpose": "any"
+    },
+    {
+      "src": "data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 100 100'%3E%3Crect width='100' height='100' fill='%231976d2' rx='20'/%3E%3Ctext x='50' y='60' text-anchor='middle' fill='white' font-size='50'%3E🚗%3C/text%3E%3C/svg%3E",
+      "sizes": "192x192",
+      "type": "image/svg+xml",
+      "purpose": "any maskable"
+    },
+    {
+      "src": "data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 100 100'%3E%3Crect width='100' height='100' fill='%231976d2' rx='20'/%3E%3Ctext x='50' y='60' text-anchor='middle' fill='white' font-size='50'%3E🚗%3C/text%3E%3C/svg%3E",
+      "sizes": "384x384",
+      "type": "image/svg+xml",
+      "purpose": "any"
+    },
+    {
+      "src": "data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 100 100'%3E%3Crect width='100' height='100' fill='%231976d2' rx='20'/%3E%3Ctext x='50' y='60' text-anchor='middle' fill='white' font-size='50'%3E🚗%3C/text%3E%3C/svg%3E",
       "sizes": "512x512",
-      "type": "image/svg+xml"
+      "type": "image/svg+xml",
+      "purpose": "any maskable"
     }
   ],
   "start_url": "/employee/dashboard",
@@ -18,9 +56,18 @@
   "orientation": "portrait-primary",
   "theme_color": "#1976d2",
   "background_color": "#ffffff",
-  "description": "Elite Car Shine Employee Portal - Mobile access for field workers",
+  "description": "Elite Car Shine Employee Portal - Professional car detailing management system",
   "categories": ["business", "productivity", "utilities"],
   "lang": "en",
   "scope": "/",
-  "prefer_related_applications": false
+  "prefer_related_applications": false,
+  "display_override": ["window-controls-overlay", "standalone"],
+  "screenshots": [
+    {
+      "src": "data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 360 640'%3E%3Crect width='360' height='640' fill='%231976d2'/%3E%3Ctext x='180' y='320' text-anchor='middle' fill='white' font-size='24'%3EElite Car Shine%3C/text%3E%3Ctext x='180' y='360' text-anchor='middle' fill='white' font-size='16'%3EEmployee Portal%3C/text%3E%3C/svg%3E",
+      "sizes": "360x640",
+      "type": "image/svg+xml",
+      "form_factor": "narrow"
+    }
+  ]
 } 

@@ -147,3 +147,22 @@ self.addEventListener('notificationclick', (event) => {
     );
   }
 });
+
+// Handle messages from the main thread
+self.addEventListener('message', (event) => {
+  console.log('Service Worker: Message received', event.data);
+  
+  if (event.data && event.data.type === 'INSTALL_PWA') {
+    console.log('Service Worker: PWA installation requested');
+    // Try to trigger PWA installation
+    event.waitUntil(
+      self.clients.matchAll().then(clients => {
+        clients.forEach(client => {
+          client.postMessage({
+            type: 'TRIGGER_INSTALL'
+          });
+        });
+      })
+    );
+  }
+});

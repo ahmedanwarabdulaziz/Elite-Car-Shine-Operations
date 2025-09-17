@@ -1,4 +1,7 @@
 import React from 'react';
+import { useNavigate } from 'react-router-dom';
+import { signOut } from 'firebase/auth';
+import { auth } from '../../firebase/config';
 import {
   AppBar,
   Toolbar,
@@ -19,9 +22,12 @@ import {
   Settings,
   Logout,
 } from '@mui/icons-material';
+import { useNotification } from '../Common/NotificationSystem';
 
 const Header = ({ onMenuToggle, sidebarOpen }) => {
   const theme = useTheme();
+  const navigate = useNavigate();
+  const { showSuccess } = useNotification();
   const isMobile = useMediaQuery(theme.breakpoints.down('md'));
   const [anchorEl, setAnchorEl] = React.useState(null);
 
@@ -31,6 +37,36 @@ const Header = ({ onMenuToggle, sidebarOpen }) => {
 
   const handleProfileMenuClose = () => {
     setAnchorEl(null);
+  };
+
+  const handleLogout = async () => {
+    try {
+      // Check if user is an employee (session-based auth)
+      const employeeSession = sessionStorage.getItem('employeeUser');
+      
+      if (employeeSession) {
+        // Employee logout - clear session and redirect to employee login
+        sessionStorage.removeItem('employeeUser');
+        showSuccess('Logged out successfully');
+        navigate('/employee/login');
+      } else {
+        // Admin logout - sign out from Firebase and redirect to admin login
+        await signOut(auth);
+        sessionStorage.removeItem('user');
+        localStorage.removeItem('user');
+        showSuccess('Logged out successfully');
+        navigate('/login');
+      }
+    } catch (error) {
+      console.error('Logout error:', error);
+      // Fallback: clear all data and redirect to admin login
+      sessionStorage.clear();
+      localStorage.clear();
+      showSuccess('Logged out successfully');
+      navigate('/login');
+    }
+    
+    handleProfileMenuClose();
   };
 
   const isMenuOpen = Boolean(anchorEl);
@@ -113,7 +149,7 @@ const Header = ({ onMenuToggle, sidebarOpen }) => {
             Settings
           </MenuItem>
           <Divider />
-          <MenuItem onClick={handleProfileMenuClose}>
+          <MenuItem onClick={handleLogout}>
             <Logout sx={{ mr: 2 }} />
             Logout
           </MenuItem>

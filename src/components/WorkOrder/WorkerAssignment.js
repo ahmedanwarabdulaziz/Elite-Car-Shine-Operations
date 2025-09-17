@@ -12,23 +12,15 @@ import {
   DialogTitle,
   DialogContent,
   DialogActions,
-  FormControl,
-  InputLabel,
-  Select,
-  MenuItem,
   Grid,
   Divider,
   Tooltip,
-  Badge,
   Alert,
   CircularProgress,
 } from '@mui/material';
 import {
-  PersonAdd as PersonAddIcon,
   Group as GroupIcon,
   CheckCircle as CheckCircleIcon,
-  Person as PersonIcon,
-  Business as BusinessIcon,
 } from '@mui/icons-material';
 import { useNotification } from '../Common/NotificationSystem';
 import useFirebase from '../../hooks/useFirebase';
@@ -149,59 +141,65 @@ const WorkerAssignment = ({ workOrder, onUpdate }) => {
 
   return (
     <Box>
-      <Card variant="outlined" sx={{ mb: 2 }}>
-        <CardContent sx={{ pb: 1 }}>
-          <Box display="flex" alignItems="center" justifyContent="space-between" mb={2}>
-            <Typography variant="h6" component="div">
-              <GroupIcon sx={{ mr: 1, verticalAlign: 'middle' }} />
-              Worker Assignment
-            </Typography>
-            <Button
-              size="small"
-              startIcon={<PersonAddIcon />}
-              onClick={handleOpenDialog}
-              variant="outlined"
-            >
-              Assign Workers
-            </Button>
-          </Box>
-
-          {selectedWorkers.length > 0 ? (
-            <Box>
-              <Box display="flex" alignItems="center" mb={1}>
-                <Typography variant="body2" color="textSecondary">
-                  {selectedWorkers.length} worker{selectedWorkers.length > 1 ? 's' : ''} assigned
-                </Typography>
-              </Box>
-              
-              <Box display="flex" flexWrap="wrap" gap={1}>
-                {selectedWorkers.map(workerId => (
-                  <Chip
-                    key={workerId}
-                    avatar={
-                      <Avatar sx={{ 
-                        bgcolor: getDepartmentColor(getWorkerDepartment(workerId)),
-                        width: 24,
-                        height: 24,
-                        fontSize: '0.75rem'
-                      }}>
-                        {getWorkerName(workerId).charAt(0)}
-                      </Avatar>
+      {/* Compact Worker Display */}
+      <Box sx={{ display: 'flex', alignItems: 'center', gap: 1, minHeight: 32 }}>
+        <Tooltip title="Assign Workers">
+          <IconButton
+            size="small"
+            onClick={handleOpenDialog}
+            sx={{ 
+              p: 0.5,
+              bgcolor: selectedWorkers.length > 0 ? 'primary.main' : 'transparent',
+              color: selectedWorkers.length > 0 ? 'white' : 'primary.main',
+              '&:hover': {
+                bgcolor: selectedWorkers.length > 0 ? 'primary.dark' : 'primary.50'
+              }
+            }}
+          >
+            <GroupIcon fontSize="small" />
+          </IconButton>
+        </Tooltip>
+        
+        {selectedWorkers.length > 0 ? (
+          <Box sx={{ display: 'flex', alignItems: 'center', gap: 0.5, flexWrap: 'wrap' }}>
+            {selectedWorkers.slice(0, 3).map(workerId => (
+              <Tooltip key={workerId} title={`${getWorkerName(workerId)} - ${getWorkerDepartment(workerId)}`}>
+                <Chip
+                  avatar={
+                    <Avatar sx={{ 
+                      bgcolor: getDepartmentColor(getWorkerDepartment(workerId)),
+                      width: 16,
+                      height: 16,
+                      fontSize: '0.6rem'
+                    }}>
+                      {getWorkerName(workerId).charAt(0)}
+                    </Avatar>
+                  }
+                  label={getWorkerName(workerId)}
+                  variant="outlined"
+                  size="small"
+                  sx={{ 
+                    height: 20,
+                    fontSize: '0.7rem',
+                    '& .MuiChip-label': {
+                      px: 0.5
                     }
-                    label={getWorkerName(workerId)}
-                    variant="outlined"
-                    size="small"
-                  />
-                ))}
-              </Box>
-            </Box>
-          ) : (
-            <Alert severity="info" sx={{ mb: 1 }}>
-              No workers assigned to this work order
-            </Alert>
-          )}
-        </CardContent>
-      </Card>
+                  }}
+                />
+              </Tooltip>
+            ))}
+            {selectedWorkers.length > 3 && (
+              <Typography variant="caption" color="text.secondary" sx={{ fontSize: '0.7rem' }}>
+                +{selectedWorkers.length - 3} more
+              </Typography>
+            )}
+          </Box>
+        ) : (
+          <Typography variant="caption" color="text.secondary" sx={{ fontSize: '0.7rem' }}>
+            No workers assigned
+          </Typography>
+        )}
+      </Box>
 
       {/* Assignment Dialog */}
       <Dialog open={openDialog} onClose={handleCloseDialog} maxWidth="md" fullWidth>
