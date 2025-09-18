@@ -113,7 +113,7 @@ const Step6Summary = ({
     if (!workOrderData?.customer) return 'Unknown Customer';
     
     if (workOrderData.customerType === 'corporate') {
-      return workOrderData.customer.corporateName || 'Unnamed Corporate Customer';
+      return workOrderData.customer.name || workOrderData.customer.corporateName || 'Unnamed Corporate Customer';
     } else {
       const customerFieldsData = workOrderData.customer.customerFields || {};
       const nameField = Object.values(customerFieldsData).find(value => value);
@@ -127,8 +127,8 @@ const Step6Summary = ({
     const details = [];
     
     if (workOrderData.customerType === 'corporate') {
-      if (workOrderData.customer.corporateName) {
-        details.push({ label: 'Company Name', value: workOrderData.customer.corporateName });
+      if (workOrderData.customer.name || workOrderData.customer.corporateName) {
+        details.push({ label: 'Company Name', value: workOrderData.customer.name || workOrderData.customer.corporateName });
       }
       if (workOrderData.customer.description) {
         details.push({ label: 'Description', value: workOrderData.customer.description });
@@ -238,7 +238,9 @@ const Step6Summary = ({
   };
 
   const calculateTotal = () => {
-    return calculateSubtotal();
+    const subtotal = calculateSubtotal();
+    const taxAmount = Number(workOrderData.taxAmount) || 0;
+    return subtotal + taxAmount;
   };
 
   const handleEditSection = (section) => {
@@ -559,12 +561,16 @@ const Step6Summary = ({
                       <TableCell>Type</TableCell>
                       <TableCell>Notes</TableCell>
                       <TableCell align="right">Price</TableCell>
+                      <TableCell align="right">Tax</TableCell>
                       <TableCell align="right">Total</TableCell>
                     </TableRow>
                   </TableHead>
                   <TableBody>
                     {workOrderData.services?.map(service => {
-                      const serviceTotal = (Number(service.price) || 0);
+                      const servicePrice = Number(service.price) || 0;
+                      const serviceTax = Number(service.taxAmount) || 0;
+                      const serviceTotal = servicePrice + serviceTax;
+                      
                       return (
                         <TableRow key={`service-${service.id}`}>
                           <TableCell>
@@ -583,7 +589,12 @@ const Step6Summary = ({
                           </TableCell>
                           <TableCell align="right">
                             <Typography variant="subtitle2" color="primary">
-                              ${(Number(service.price) || 0).toFixed(2)}
+                              ${servicePrice.toFixed(2)}
+                            </Typography>
+                          </TableCell>
+                          <TableCell align="right">
+                            <Typography variant="subtitle2" color={serviceTax > 0 ? "primary" : "text.secondary"}>
+                              ${serviceTax.toFixed(2)}
                             </Typography>
                           </TableCell>
                           <TableCell align="right">
@@ -596,7 +607,10 @@ const Step6Summary = ({
                     })}
                     
                     {workOrderData.bundles?.map(bundle => {
-                      const bundleTotal = (Number(bundle.price) || 0);
+                      const bundlePrice = Number(bundle.price) || 0;
+                      const bundleTax = Number(bundle.taxAmount) || 0;
+                      const bundleTotal = bundlePrice + bundleTax;
+                      
                       return (
                         <TableRow key={`bundle-${bundle.id}`}>
                           <TableCell>
@@ -606,7 +620,7 @@ const Step6Summary = ({
                             </Typography>
                           </TableCell>
                           <TableCell>
-                            <Chip label="Bundle" size="small" color="primary" />
+                            <Chip label="Bundle" size="small" color="secondary" />
                           </TableCell>
                           <TableCell>
                             <Typography variant="body2">
@@ -615,7 +629,12 @@ const Step6Summary = ({
                           </TableCell>
                           <TableCell align="right">
                             <Typography variant="subtitle2" color="primary">
-                              ${(Number(bundle.price) || 0).toFixed(2)}
+                              ${bundlePrice.toFixed(2)}
+                            </Typography>
+                          </TableCell>
+                          <TableCell align="right">
+                            <Typography variant="subtitle2" color={bundleTax > 0 ? "primary" : "text.secondary"}>
+                              ${bundleTax.toFixed(2)}
                             </Typography>
                           </TableCell>
                           <TableCell align="right">
@@ -637,13 +656,33 @@ const Step6Summary = ({
                           ${calculateSubtotal().toFixed(2)}
                         </Typography>
                       </TableCell>
+                      <TableCell></TableCell>
+                      <TableCell></TableCell>
                     </TableRow>
+                    
+                    {/* Tax Row */}
+                    {Number(workOrderData.taxAmount) > 0 && (
+                      <TableRow>
+                        <TableCell colSpan={3}>
+                          <Typography variant="h6">Tax</Typography>
+                        </TableCell>
+                        <TableCell></TableCell>
+                        <TableCell align="right">
+                          <Typography variant="h6" color="primary">
+                            ${(Number(workOrderData.taxAmount) || 0).toFixed(2)}
+                          </Typography>
+                        </TableCell>
+                        <TableCell></TableCell>
+                      </TableRow>
+                    )}
                     
                     {/* Total Row */}
                     <TableRow>
                       <TableCell colSpan={3}>
                         <Typography variant="h6" fontWeight="bold">Total</Typography>
                       </TableCell>
+                      <TableCell></TableCell>
+                      <TableCell></TableCell>
                       <TableCell align="right">
                         <Typography variant="h6" color="success.main" fontWeight="bold">
                           ${calculateTotal().toFixed(2)}

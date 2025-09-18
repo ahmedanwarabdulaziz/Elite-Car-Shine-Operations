@@ -13,6 +13,8 @@ import {
   AttachMoney as FinanceIcon,
   People as EmployeeIcon,
 } from '@mui/icons-material';
+import OverdueDashboard from '../../components/Overdue/OverdueDashboard';
+import PaymentAnalyticsWidget from '../../components/Dashboard/PaymentAnalyticsWidget';
 
 const DashboardPage = () => {
   const theme = useTheme();
@@ -72,6 +74,16 @@ const DashboardPage = () => {
             </Card>
           </Grid>
         ))}
+      </Grid>
+
+      {/* Payment Analytics Widget */}
+      <Grid container spacing={3} sx={{ mb: 4 }}>
+        <Grid item xs={12} md={6}>
+          <PaymentAnalyticsWidget />
+        </Grid>
+        <Grid item xs={12} md={6}>
+          <OverdueDashboard />
+        </Grid>
       </Grid>
 
       {/* Welcome Message */}

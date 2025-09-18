@@ -32,6 +32,13 @@ import {
   AttachMoney as TaxIcon,
   Dashboard as DashboardViewIcon,
   Palette as PaletteIcon,
+  Storage as StorageIcon,
+  AccountBalance as PendingPaymentsIcon,
+  AccountBalanceWallet as VaultIcon,
+  AccountBalance as BankAccountsIcon,
+  Receipt as ExpensesIcon,
+  Category as ExpenseCategoriesIcon,
+  Assessment as PaymentReportsIcon,
 } from '@mui/icons-material';
 import { useNavigate, useLocation } from 'react-router-dom';
 
@@ -53,6 +60,13 @@ const menuItems = [
   { text: 'Work Orders', icon: <WorkOrderIcon />, path: '/work-orders' },
   { text: 'Work Orders Dashboard', icon: <DashboardViewIcon />, path: '/work-orders-dashboard' },
   { text: 'Issued Invoices', icon: <InvoiceIcon />, path: '/issued-invoices' },
+  { text: 'Pending Payments', icon: <PendingPaymentsIcon />, path: '/pending-payments' },
+  { text: 'Corporate Settlement', icon: <BusinessIcon />, path: '/corporate-settlement' },
+  { text: 'Vault', icon: <VaultIcon />, path: '/vault' },
+  { text: 'Bank Accounts', icon: <BankAccountsIcon />, path: '/bank-accounts' },
+  { text: 'Expense Categories', icon: <ExpenseCategoriesIcon />, path: '/expense-categories' },
+  { text: 'Expenses', icon: <ExpensesIcon />, path: '/expenses' },
+  { text: 'Payment Reports', icon: <PaymentReportsIcon />, path: '/payment-reports' },
   { text: 'Invoices', icon: <InvoiceIcon />, path: '/invoices' },
   { text: 'Invoice Reports', icon: <AnalyticsIcon />, path: '/invoice-reports' },
   { text: 'Finance', icon: <FinanceIcon />, path: '/finance' },
@@ -61,6 +75,7 @@ const menuItems = [
   { text: 'Analytics', icon: <AnalyticsIcon />, path: '/analytics' },
   { text: 'Settings', icon: <SettingsIcon />, path: '/settings' },
   { text: 'Work Order Statuses', icon: <PaletteIcon />, path: '/work-order-statuses' },
+  { text: 'Data Management', icon: <StorageIcon />, path: '/data-management' },
 ];
 
 const Sidebar = ({ open, onToggle }) => {

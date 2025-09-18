@@ -42,7 +42,7 @@ const Step2CustomerSelect = ({ customerType, data, onSelect, searchTerm, setSear
                     </Avatar>
                     <Box>
                       <Typography variant="h6">
-                        {customerType === 'corporate' ? item.corporateName : item.name}
+                        {customerType === 'corporate' ? (item.name || item.corporateName) : item.name}
                       </Typography>
                       <Typography variant="body2" color="text.secondary">
                         {item.description || 'No description'}

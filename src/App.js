@@ -25,12 +25,20 @@ import InvoiceReportsPage from './pages/InvoiceReports/InvoiceReportsPage';
 import InvoiceLifecyclePage from './pages/InvoiceReports/Lifecycle/InvoiceLifecyclePage';
 import WorkOrderStatusesPage from './pages/WorkOrder/WorkOrderStatusesPage';
 import IssuedInvoicesPage from './pages/WorkOrder/IssuedInvoicesPage';
+import PendingPaymentsPage from './pages/PendingPayments/PendingPaymentsPage';
+import VaultPage from './pages/Vault/VaultPage';
+import PaymentReportsPage from './pages/Reports/PaymentReportsPage';
+import BankAccountsPage from './pages/BankAccounts/BankAccountsPage';
+import ExpenseCategoriesPage from './pages/ExpenseCategories/ExpenseCategoriesPage';
+import ExpensesPage from './pages/Expenses/ExpensesPage';
 import EmployeesPage from './pages/Employees/EmployeesPage';
 import DepartmentsPage from './pages/Departments/DepartmentsPage';
+import CorporateSettlementPage from './pages/CorporateSettlement/CorporateSettlementPage';
 import EmployeeLoginPage from './pages/EmployeeLoginPage';
 import EmployeeChangePasswordPage from './pages/EmployeeChangePasswordPage';
 import EmployeeDashboard from './pages/EmployeeDashboard';
 import LoginPage from './pages/LoginPage';
+import DataManagementPage from './pages/DataManagement/DataManagementPage';
 import { auth } from './firebase/config';
 import { onAuthStateChanged } from 'firebase/auth';
 
@@ -143,6 +151,14 @@ function AppRouter() {
           <Route path="/invoice-reports/lifecycle" element={<InvoiceLifecyclePage />} />
           <Route path="/work-order-statuses" element={<WorkOrderStatusesPage />} />
           <Route path="/issued-invoices" element={<IssuedInvoicesPage />} />
+          <Route path="/pending-payments" element={<PendingPaymentsPage />} />
+          <Route path="/vault" element={<VaultPage />} />
+          <Route path="/bank-accounts" element={<BankAccountsPage />} />
+          <Route path="/expense-categories" element={<ExpenseCategoriesPage />} />
+          <Route path="/expenses" element={<ExpensesPage />} />
+          <Route path="/payment-reports" element={<PaymentReportsPage />} />
+          <Route path="/corporate-settlement" element={<CorporateSettlementPage />} />
+          <Route path="/data-management" element={<DataManagementPage />} />
           <Route path="/employee/*" element={<EmployeeDashboard />} />
         </Routes>
       </EmployeeLayout>
@@ -178,6 +194,14 @@ function AppRouter() {
         <Route path="/invoice-reports/lifecycle" element={<InvoiceLifecyclePage />} />
         <Route path="/work-order-statuses" element={<WorkOrderStatusesPage />} />
         <Route path="/issued-invoices" element={<IssuedInvoicesPage />} />
+        <Route path="/pending-payments" element={<PendingPaymentsPage />} />
+        <Route path="/vault" element={<VaultPage />} />
+        <Route path="/bank-accounts" element={<BankAccountsPage />} />
+        <Route path="/expense-categories" element={<ExpenseCategoriesPage />} />
+        <Route path="/expenses" element={<ExpensesPage />} />
+        <Route path="/payment-reports" element={<PaymentReportsPage />} />
+        <Route path="/corporate-settlement" element={<CorporateSettlementPage />} />
+        <Route path="/data-management" element={<DataManagementPage />} />
       </Routes>
     </MainLayout>
   );

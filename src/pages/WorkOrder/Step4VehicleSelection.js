@@ -195,7 +195,7 @@ const Step4VehicleSelection = ({
     if (!selectedCustomer) return 'Unknown Customer';
     
     if (customerType === 'corporate') {
-      return selectedCustomer.corporateName || 'Unnamed Corporate Customer';
+      return selectedCustomer.name || selectedCustomer.corporateName || 'Unnamed Corporate Customer';
     } else {
       const customerFieldsData = selectedCustomer.customerFields || {};
       const nameField = vehicleFields.find(f => f.name?.toLowerCase().includes('name'));

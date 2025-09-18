@@ -147,77 +147,308 @@ const Step5ServicesBundles = ({
   };
 
   const getServicePrice = (service) => {
-    console.log('Getting service price for:', service.name);
-    console.log('Selected group:', selectedGroup);
-    console.log('Service prices:', service.prices);
+    console.log('=== SERVICE PRICE DEBUG ===');
+    console.log('Service:', service.name);
+    console.log('Selected group (selectedGroup):', selectedGroup);
+    console.log('Selected customer (selectedCustomer):', selectedCustomer);
+    console.log('Selected vehicle:', selectedVehicle);
+    console.log('Selected vehicle category:', selectedVehicleCategory);
+    console.log('Customer type:', customerType);
+    console.log('Service prices object:', service.prices);
+    console.log('Service default price:', service.price);
     
-    if (!selectedGroup) {
-      console.log('No group selected, using default price:', service.price || 0);
+    // Try to get the category type from different sources
+    let categoryId = null;
+    let categorySource = 'none';
+    
+    // Priority 1: Use selectedGroup.categoryType (for both corporate and individual)
+    if (selectedGroup?.categoryType) {
+      categoryId = selectedGroup.categoryType;
+      categorySource = 'selectedGroup.categoryType';
+      console.log('✓ Using selectedGroup.categoryType:', categoryId);
+    }
+    // Priority 2: Use selectedCustomer.group.categoryType
+    else if (selectedCustomer?.group?.categoryType) {
+      categoryId = selectedCustomer.group.categoryType;
+      categorySource = 'selectedCustomer.group.categoryType';
+      console.log('✓ Using selectedCustomer.group.categoryType:', categoryId);
+    }
+    // Priority 3: Check if selectedCustomer itself has categoryType (for corporate customers)
+    else if (selectedCustomer?.categoryType) {
+      categoryId = selectedCustomer.categoryType;
+      categorySource = 'selectedCustomer.categoryType';
+      console.log('✓ Using selectedCustomer.categoryType:', categoryId);
+    }
+    // Priority 4: Use selectedCustomer.groupId to find the group
+    else if (selectedCustomer?.groupId) {
+      console.log('Found groupId but no categoryType, using default price');
+      categorySource = 'groupId-only';
+    }
+    
+    console.log('Final category ID:', categoryId);
+    console.log('Category source:', categorySource);
+    
+    if (!categoryId) {
+      console.log('❌ No category type found, using default price:', service.price || 0);
       return Number(service.price) || 0;
     }
     
     // Check if service has category-specific pricing
-    if (service.prices && selectedGroup.categoryType) {
-      // Look for any vehicle type price in this category
-      const categoryId = selectedGroup.categoryType;
+    if (service.prices && categoryId) {
       const priceKeys = Object.keys(service.prices);
+      console.log('Available price keys:', priceKeys);
+      
+      // First, try to find exact match with vehicle category
+      if (selectedVehicleCategory?.id) {
+        const exactKey = `${categoryId}_${selectedVehicleCategory.id}`;
+        console.log('Looking for exact vehicle category key:', exactKey);
+        
+        if (service.prices[exactKey]) {
+          const categoryPrice = service.prices[exactKey];
+          console.log('✓ Using exact vehicle category price:', categoryPrice, 'for key:', exactKey);
+          return Number(categoryPrice) || 0;
+        }
+      }
+      
+      // If no exact match, try any price for this category
+      console.log('No exact vehicle category match, looking for any category price starting with:', `${categoryId}_`);
       
       for (const priceKey of priceKeys) {
         if (priceKey.startsWith(`${categoryId}_`)) {
           const categoryPrice = service.prices[priceKey];
-          console.log('Using category price:', categoryPrice, 'for key:', priceKey);
+          console.log('✓ Using category price (any vehicle type):', categoryPrice, 'for key:', priceKey);
           return Number(categoryPrice) || 0;
         }
       }
+      console.log('❌ No matching price key found for category:', categoryId);
     }
     
-    console.log('Using default price:', service.price || 0);
+    console.log('❌ Using default price:', service.price || 0);
+    console.log('=== END SERVICE PRICE DEBUG ===');
     return Number(service.price) || 0;
   };
 
   const getBundlePrice = (bundle) => {
-    console.log('Getting bundle price for:', bundle.name);
-    console.log('Bundle prices:', bundle.prices);
+    console.log('=== BUNDLE PRICE DEBUG ===');
+    console.log('Bundle:', bundle.name);
+    console.log('Selected group (selectedGroup):', selectedGroup);
+    console.log('Selected customer (selectedCustomer):', selectedCustomer);
+    console.log('Selected vehicle:', selectedVehicle);
+    console.log('Selected vehicle category:', selectedVehicleCategory);
+    console.log('Customer type:', customerType);
+    console.log('Bundle prices object:', bundle.prices);
+    console.log('Bundle default price:', bundle.price);
     
-    if (!selectedGroup) {
-      console.log('No group selected, using default price:', bundle.price || 0);
+    // Try to get the category type from different sources
+    let categoryId = null;
+    let categorySource = 'none';
+    
+    // Priority 1: Use selectedGroup.categoryType (for both corporate and individual)
+    if (selectedGroup?.categoryType) {
+      categoryId = selectedGroup.categoryType;
+      categorySource = 'selectedGroup.categoryType';
+      console.log('✓ Using selectedGroup.categoryType:', categoryId);
+    }
+    // Priority 2: Use selectedCustomer.group.categoryType
+    else if (selectedCustomer?.group?.categoryType) {
+      categoryId = selectedCustomer.group.categoryType;
+      categorySource = 'selectedCustomer.group.categoryType';
+      console.log('✓ Using selectedCustomer.group.categoryType:', categoryId);
+    }
+    // Priority 3: Check if selectedCustomer itself has categoryType (for corporate customers)
+    else if (selectedCustomer?.categoryType) {
+      categoryId = selectedCustomer.categoryType;
+      categorySource = 'selectedCustomer.categoryType';
+      console.log('✓ Using selectedCustomer.categoryType:', categoryId);
+    }
+    // Priority 4: Use selectedCustomer.groupId to find the group
+    else if (selectedCustomer?.groupId) {
+      console.log('Found groupId but no categoryType, using default price');
+      categorySource = 'groupId-only';
+    }
+    
+    console.log('Final category ID:', categoryId);
+    console.log('Category source:', categorySource);
+    
+    if (!categoryId) {
+      console.log('❌ No category type found, using default price:', bundle.price || 0);
       return Number(bundle.price) || 0;
     }
     
     // Check if bundle has category-specific pricing
-    if (bundle.prices && selectedGroup.categoryType) {
-      // Look for any vehicle type price in this category
-      const categoryId = selectedGroup.categoryType;
+    if (bundle.prices && categoryId) {
       const priceKeys = Object.keys(bundle.prices);
+      console.log('Available price keys:', priceKeys);
+      
+      // First, try to find exact match with vehicle category
+      if (selectedVehicleCategory?.id) {
+        const exactKey = `${categoryId}_${selectedVehicleCategory.id}`;
+        console.log('Looking for exact vehicle category key:', exactKey);
+        
+        if (bundle.prices[exactKey]) {
+          const categoryPrice = bundle.prices[exactKey];
+          console.log('✓ Using exact vehicle category price:', categoryPrice, 'for key:', exactKey);
+          return Number(categoryPrice) || 0;
+        }
+      }
+      
+      // If no exact match, try any price for this category
+      console.log('No exact vehicle category match, looking for any category price starting with:', `${categoryId}_`);
       
       for (const priceKey of priceKeys) {
         if (priceKey.startsWith(`${categoryId}_`)) {
           const categoryPrice = bundle.prices[priceKey];
-          console.log('Using category price:', categoryPrice, 'for key:', priceKey);
+          console.log('✓ Using category price (any vehicle type):', categoryPrice, 'for key:', priceKey);
           return Number(categoryPrice) || 0;
         }
       }
+      console.log('❌ No matching price key found for category:', categoryId);
     }
     
-    console.log('Using default price:', bundle.price || 0);
+    console.log('❌ Using default price:', bundle.price || 0);
+    console.log('=== END BUNDLE PRICE DEBUG ===');
     return Number(bundle.price) || 0;
   };
 
   // Tax calculation functions
   const calculateItemTax = (item) => {
-    if (!item.taxIds || !taxes || taxes.length === 0) return 0;
+    console.log('=== TAX CALCULATION DEBUG ===');
+    console.log('Item:', item.name);
+    console.log('Item taxIds:', item.taxIds);
+    console.log('Selected group:', selectedGroup);
+    console.log('Selected customer:', selectedCustomer);
+    console.log('Customer type:', customerType);
+    console.log('Available taxes:', taxes);
+    console.log('Taxes length:', taxes?.length || 0);
+    
+    if (!item.taxIds || !taxes || taxes.length === 0) {
+      console.log('❌ No taxIds or taxes available, returning 0');
+      return 0;
+    }
+    
+    // Get customer group tax IDs
+    let customerGroupTaxIds = [];
+    
+    console.log('🔍 DEBUGGING CUSTOMER GROUP TAX IDs:');
+    console.log('  - Customer type:', customerType);
+    console.log('  - Selected group:', selectedGroup);
+    console.log('  - Selected group taxIds:', selectedGroup?.taxIds);
+    console.log('  - Selected customer:', selectedCustomer);
+    console.log('  - Selected customer group:', selectedCustomer?.group);
+    console.log('  - Selected customer group taxIds:', selectedCustomer?.group?.taxIds);
+    
+    // Debug available taxes in the system
+    console.log('🔍 AVAILABLE TAXES IN SYSTEM:');
+    if (taxes && taxes.length > 0) {
+      taxes.forEach((tax, index) => {
+        console.log(`  Tax ${index + 1}: ${tax.name} (ID: ${tax.id}, Rate: ${tax.rate}%, Active: ${tax.isActive})`);
+      });
+    } else {
+      console.log('  - No taxes loaded in system');
+    }
+    
+    if (customerType === 'corporate' && selectedGroup?.taxIds) {
+      customerGroupTaxIds = selectedGroup.taxIds;
+      console.log('Corporate customer group tax IDs:', customerGroupTaxIds);
+    } else if (customerType === 'individual' && selectedGroup?.taxIds) {
+      customerGroupTaxIds = selectedGroup.taxIds;
+      console.log('Individual customer group tax IDs:', customerGroupTaxIds);
+    } else if (selectedCustomer?.group?.taxIds) {
+      customerGroupTaxIds = selectedCustomer.group.taxIds;
+      console.log('Using customer group tax IDs from selectedCustomer:', customerGroupTaxIds);
+    } else {
+      console.log('❌ NO CUSTOMER GROUP TAX IDs FOUND');
+      console.log('  - selectedGroup:', selectedGroup);
+      console.log('  - selectedCustomer.group:', selectedCustomer?.group);
+    }
+    
+    // Find intersection of item tax IDs and customer group tax IDs
+    const applicableTaxIds = item.taxIds.filter(taxId => 
+      customerGroupTaxIds.includes(taxId)
+    );
+    
+    console.log('Applicable tax IDs (intersection):', applicableTaxIds);
+    
+    if (applicableTaxIds.length === 0) {
+      console.log('❌ No taxes applicable - customer group not assigned to any of the item taxes');
+      console.log('🔍 DETAILED TAX ID DEBUGGING:');
+      console.log('  - Item taxIds:', item.taxIds);
+      console.log('  - Customer group taxIds:', customerGroupTaxIds);
+      console.log('  - Item taxIds type:', typeof item.taxIds, 'length:', item.taxIds?.length);
+      console.log('  - Customer group taxIds type:', typeof customerGroupTaxIds, 'length:', customerGroupTaxIds?.length);
+      
+      // Check if there are any matches
+      if (item.taxIds && customerGroupTaxIds) {
+        console.log('  - Checking for matches:');
+        item.taxIds.forEach(itemTaxId => {
+          const isMatch = customerGroupTaxIds.includes(itemTaxId);
+          console.log(`    - Item taxId ${itemTaxId} matches customer group: ${isMatch}`);
+        });
+        
+        customerGroupTaxIds.forEach(customerTaxId => {
+          const isMatch = item.taxIds.includes(customerTaxId);
+          console.log(`    - Customer group taxId ${customerTaxId} matches item: ${isMatch}`);
+        });
+      }
+      
+      return 0;
+    }
     
     let totalTax = 0;
     const basePrice = getServicePrice(item) || getBundlePrice(item) || 0;
+    console.log('Base price for tax calculation:', basePrice);
     
-    item.taxIds.forEach(taxId => {
+    applicableTaxIds.forEach(taxId => {
+      console.log('Processing applicable tax ID:', taxId);
       const tax = taxes.find(t => t.id === taxId);
+      console.log('Found tax:', tax);
+      
       if (tax && tax.isActive !== false) {
-        const taxAmount = (basePrice * tax.rate) / 100;
-        totalTax += taxAmount;
+        // Check tax conditions
+        let shouldApplyTax = true;
+        
+        // Tax condition 1: Check if tax is inclusive (already included in price)
+        if (tax.isInclusive === true) {
+          console.log(`Tax ${tax.name} is inclusive (already included in price), skipping`);
+          shouldApplyTax = false;
+        }
+        
+        // Tax condition 2: Check if tax has specific customer type conditions
+        if (tax.customerTypes && tax.customerTypes.length > 0) {
+          const customerTypeMatches = tax.customerTypes.includes(customerType) || tax.customerTypes.includes('both');
+          console.log(`Tax ${tax.name} customer types:`, tax.customerTypes);
+          console.log(`Current customer type: ${customerType}, matches: ${customerTypeMatches}`);
+          if (!customerTypeMatches) {
+            shouldApplyTax = false;
+          }
+        }
+        
+        // Tax condition 3: Check if tax has minimum amount condition
+        if (tax.minimumAmount && basePrice < tax.minimumAmount) {
+          console.log(`Tax ${tax.name} minimum amount: $${tax.minimumAmount}, current price: $${basePrice}, below minimum`);
+          shouldApplyTax = false;
+        }
+        
+        // Tax condition 4: Check if tax has maximum amount condition
+        if (tax.maximumAmount && basePrice > tax.maximumAmount) {
+          console.log(`Tax ${tax.name} maximum amount: $${tax.maximumAmount}, current price: $${basePrice}, above maximum`);
+          shouldApplyTax = false;
+        }
+        
+        if (shouldApplyTax) {
+          const taxAmount = (basePrice * tax.rate) / 100;
+          console.log(`✓ Tax ${tax.name}: ${tax.rate}% of $${basePrice} = $${taxAmount.toFixed(2)}`);
+          totalTax += taxAmount;
+        } else {
+          console.log(`❌ Tax ${tax.name} conditions not met, skipping`);
+        }
+      } else {
+        console.log('❌ Tax not found or inactive:', taxId);
       }
     });
     
+    console.log('Total tax calculated:', totalTax.toFixed(2));
+    console.log('=== END TAX CALCULATION DEBUG ===');
     return totalTax;
   };
 
@@ -251,7 +482,7 @@ const Step5ServicesBundles = ({
 
   const handleContinue = async () => {
     let customerToUse = selectedCustomer;
-    if (customerType === 'corporate' && (!selectedCustomer.corporateName || !selectedCustomer.id)) {
+    if (customerType === 'corporate' && (!selectedCustomer.name && !selectedCustomer.corporateName || !selectedCustomer.id)) {
       // Defensive: fetch full corporate customer object by ID
       try {
         const docRef = doc(db, 'corporateCustomers', selectedCustomer.id);
@@ -263,21 +494,74 @@ const Step5ServicesBundles = ({
         console.error('Error fetching corporate customer:', err);
       }
     }
+    // Calculate tax for each service and bundle
+    const servicesWithTax = selectedServices.map(service => {
+      const basePrice = getServicePrice(service);
+      const taxAmount = calculateItemTax(service);
+      return {
+        ...service,
+        price: basePrice,
+        taxAmount: taxAmount,
+        totalWithTax: basePrice + taxAmount,
+        notes: serviceNotes[service.id] || ''
+      };
+    });
+
+    const bundlesWithTax = selectedBundles.map(bundle => {
+      const basePrice = getBundlePrice(bundle);
+      const taxAmount = calculateItemTax(bundle);
+      
+      // Debug Standard bundle specifically
+      if (bundle.name === 'Standard Car Cleaning Package') {
+        console.log('🔍 STANDARD BUNDLE TAX CALCULATION:');
+        console.log('  - Bundle name:', bundle.name);
+        console.log('  - Bundle taxIds:', bundle.taxIds);
+        console.log('  - Base price:', basePrice);
+        console.log('  - Calculated tax:', taxAmount);
+        console.log('  - Total with tax:', basePrice + taxAmount);
+        console.log('  - Selected group:', selectedGroup);
+        console.log('  - Customer type:', customerType);
+        console.log('  - Available taxes:', taxes);
+        
+        // If tax is 0, let's debug why
+        if (taxAmount === 0) {
+          console.log('❌ STANDARD BUNDLE TAX IS 0 - DEBUGGING WHY:');
+          console.log('  - Bundle has taxIds:', bundle.taxIds && bundle.taxIds.length > 0);
+          console.log('  - Selected group has taxIds:', selectedGroup?.taxIds && selectedGroup.taxIds.length > 0);
+          console.log('  - Customer type matches:', customerType);
+          console.log('  - Taxes loaded:', taxes && taxes.length > 0);
+          
+          if (bundle.taxIds && selectedGroup?.taxIds) {
+            const applicableTaxIds = bundle.taxIds.filter(taxId => selectedGroup.taxIds.includes(taxId));
+            console.log('  - Applicable tax IDs:', applicableTaxIds);
+          }
+        }
+      }
+      
+      return {
+        ...bundle,
+        price: basePrice,
+        taxAmount: taxAmount,
+        totalWithTax: basePrice + taxAmount,
+        notes: bundleNotes[bundle.id] || ''
+      };
+    });
+
+    // Calculate total tax amount
+    const totalTaxAmount = calculateTotalTax();
+
     const workOrderData = {
       customerType,
       customer: customerToUse,
       group: selectedVehicleCategory,
       vehicle: selectedVehicle,
-      services: selectedServices.map(service => ({
-        ...service,
-        price: getServicePrice(service),
-        notes: serviceNotes[service.id] || ''
-      })),
-      bundles: selectedBundles.map(bundle => ({
-        ...bundle,
-        price: getBundlePrice(bundle),
-        notes: bundleNotes[bundle.id] || ''
-      })),
+      // Add customer group information for tax calculation
+      customerGroup: selectedGroup,
+      services: servicesWithTax,
+      bundles: bundlesWithTax,
+      // Store calculated tax amounts
+      subtotal: calculateSubtotal(),
+      taxAmount: totalTaxAmount,
       total: calculateTotal(),
       status: 'pending',
       createdAt: new Date()
@@ -286,6 +570,35 @@ const Step5ServicesBundles = ({
     console.log('Step5ServicesBundles: Passing work order data to Step6Summary:', workOrderData);
     console.log('Step5ServicesBundles: Customer type:', customerType);
     console.log('Step5ServicesBundles: Services count:', selectedServices.length);
+    
+    // Debug Standard bundle in work order data
+    const standardBundleInWorkOrder = workOrderData.bundles?.find(b => b.name === 'Standard Car Cleaning Package');
+    if (standardBundleInWorkOrder) {
+      console.log('🔍 STANDARD BUNDLE IN WORK ORDER DATA:');
+      console.log('  - Name:', standardBundleInWorkOrder.name);
+      console.log('  - Price:', standardBundleInWorkOrder.price);
+      console.log('  - Tax Amount:', standardBundleInWorkOrder.taxAmount);
+      console.log('  - Total With Tax:', standardBundleInWorkOrder.totalWithTax);
+      console.log('  - Tax IDs:', standardBundleInWorkOrder.taxIds);
+      
+      if (standardBundleInWorkOrder.taxAmount === 0) {
+        console.log('❌ STANDARD BUNDLE TAX IS 0 IN WORK ORDER DATA!');
+        console.log('  - This means the tax calculation failed during work order creation');
+        console.log('  - Check the tax calculation debugging above');
+      } else {
+        console.log('✅ STANDARD BUNDLE TAX IS STORED CORRECTLY:', standardBundleInWorkOrder.taxAmount);
+      }
+    }
+    
+    // Debug all bundles in work order data
+    console.log('🔍 ALL BUNDLES IN WORK ORDER DATA:');
+    workOrderData.bundles?.forEach((bundle, index) => {
+      console.log(`  Bundle ${index + 1}: ${bundle.name}`);
+      console.log(`    - Price: ${bundle.price}`);
+      console.log(`    - Tax Amount: ${bundle.taxAmount}`);
+      console.log(`    - Total With Tax: ${bundle.totalWithTax}`);
+      console.log(`    - Tax IDs: ${bundle.taxIds}`);
+    });
     console.log('Step5ServicesBundles: Bundles count:', selectedBundles.length);
     
     onComplete(workOrderData);
@@ -295,7 +608,7 @@ const Step5ServicesBundles = ({
     if (!selectedCustomer) return 'Unknown Customer';
     
     if (customerType === 'corporate') {
-      return selectedCustomer.corporateName || 'Unnamed Corporate Customer';
+      return selectedCustomer.name || selectedCustomer.corporateName || 'Unnamed Corporate Customer';
     } else {
       const customerFieldsData = selectedCustomer.customerFields || {};
       const nameField = Object.values(customerFieldsData).find(value => value);

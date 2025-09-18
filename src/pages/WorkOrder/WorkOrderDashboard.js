@@ -1,5 +1,11 @@
 import React, { useState, useEffect } from 'react';
 import { 
+  calculateDueDate, 
+  calculatePaymentStatus, 
+  isImmediateCash,
+  formatDate 
+} from '../../utils/paymentCalculations';
+import { 
   Box, 
   Typography, 
   Grid, 
@@ -32,7 +38,9 @@ import {
   useTheme,
   useMediaQuery,
   Slide,
-  Collapse
+  Collapse,
+  Checkbox,
+  FormControlLabel
 } from '@mui/material';
 import { 
   Search as SearchIcon,
@@ -53,9 +61,11 @@ import {
   ExpandLess as ExpandLessIcon,
   Videocam as VideoIcon,
   Person as PersonIcon,
-  PhotoCamera as PhotoCameraIcon
+  PhotoCamera as PhotoCameraIcon,
+  Build as ServiceIcon,
+  LocalOffer as BundleIcon
 } from '@mui/icons-material';
-import { collection, query, orderBy, onSnapshot, where, updateDoc, doc, serverTimestamp, addDoc } from 'firebase/firestore';
+import { collection, query, orderBy, onSnapshot, where, updateDoc, doc, serverTimestamp, addDoc, deleteDoc } from 'firebase/firestore';
 import { db } from '../../firebase/config';
 import WorkerAssignment from '../../components/WorkOrder/WorkerAssignment';
 import MediaUpload from '../../components/Common/MediaUpload';
@@ -81,12 +91,11 @@ const WorkOrderDashboard = ({ onNavigateToCreate, onViewWorkOrder, onEditWorkOrd
   const [viewMode, setViewMode] = useState('grid'); // 'grid' or 'table'
   const [showFilters, setShowFilters] = useState(false);
   const [expandedCards, setExpandedCards] = useState(new Set()); // Track which cards are expanded
+  const [vehicleFields, setVehicleFields] = useState([]);
   const [viewWorkOrderDialog, setViewWorkOrderDialog] = useState({ open: false, workOrder: null });
-  const [editWorkOrderDialog, setEditWorkOrderDialog] = useState({ open: false, workOrder: null });
-  const [editFormData, setEditFormData] = useState({});
-  const [savingEdit, setSavingEdit] = useState(false);
 
   const [deleteWorkOrderDialog, setDeleteWorkOrderDialog] = useState({ open: false, workOrder: null });
+  const [deleting, setDeleting] = useState(false);
 
 
   // Load work order statuses
@@ -115,18 +124,62 @@ const WorkOrderDashboard = ({ onNavigateToCreate, onViewWorkOrder, onEditWorkOrd
     return () => unsubscribe();
   }, []);
 
+  // Get available payment methods for the current work order's customer group
+  const getAvailablePaymentMethods = (workOrder) => {
+    console.log('=== GETTING AVAILABLE PAYMENT METHODS ===');
+    console.log('Work order:', workOrder);
+    console.log('Customer group:', workOrder?.customer?.group);
+    console.log('Group payment methods:', workOrder?.customer?.group?.paymentMethods);
+    console.log('All payment methods:', paymentMethods);
+    
+    if (!workOrder?.customer?.group?.paymentMethods) {
+      console.log('No specific payment methods assigned to group, returning all active payment methods');
+      return paymentMethods;
+    }
+    
+    // Filter payment methods based on customer group's assigned payment methods
+    const groupPaymentMethodIds = workOrder.customer.group.paymentMethods;
+    const availableMethods = paymentMethods.filter(method => groupPaymentMethodIds.includes(method.id));
+    
+    console.log('Group payment method IDs:', groupPaymentMethodIds);
+    console.log('Available payment methods:', availableMethods);
+    console.log('=== END PAYMENT METHODS ===');
+    
+    return availableMethods;
+  };
+
+  // Load vehicle fields
+  useEffect(() => {
+    const unsubscribe = onSnapshot(
+      query(collection(db, 'vehicleFields'), orderBy('order', 'asc')),
+      (snapshot) => {
+        const data = snapshot.docs.map(doc => ({ id: doc.id, ...doc.data() }));
+        setVehicleFields(data);
+      },
+      (error) => {
+        console.error('Error loading vehicle fields:', error);
+      }
+    );
+    return () => unsubscribe();
+  }, []);
+
+
+
+
+
+
   // Helper functions
   const getCustomerName = (workOrder) => {
     if (!workOrder?.customer) return 'Unknown Customer';
     if (workOrder.customerType === 'corporate') {
-      // Try multiple possible field names
+      // For corporate customers, prioritize the 'name' field which contains the company name
+      // Avoid 'description' field which might contain generic terms like 'Dealership'
       const c = workOrder.customer;
-      return (
-        c.corporateName ||
-        c.name ||
-        c.companyName ||
-        'Unnamed Corporate Customer'
-      );
+      
+      // Try different field names in order of preference
+      const name = c.name || c.corporateName || c.companyName;
+      
+      return name || 'Unnamed Corporate Customer';
     } else {
       const customerFieldsData = workOrder.customer.customerFields || {};
       
@@ -182,21 +235,122 @@ const WorkOrderDashboard = ({ onNavigateToCreate, onViewWorkOrder, onEditWorkOrd
   const getVehicleInfo = (workOrder) => {
     if (!workOrder?.vehicle) return 'No vehicle';
     
+    // Priority 1: Use vehicle category/group name if available
+    if (workOrder.group && workOrder.group.name) {
+      return workOrder.group.name;
+    }
+    
+    // Priority 2: Use vehicle type from vehicle data if available
+    if (workOrder.vehicle.vehicleType) {
+      return workOrder.vehicle.vehicleType;
+    }
+    
+    // Priority 3: Look for meaningful vehicle information in vehicle fields
     const vehicleFieldsData = workOrder.vehicle.vehicleFields || {};
+    
+    // Look for common vehicle identifiers
+    const vehicleIdentifiers = [
+      'make', 'brand', 'manufacturer',
+      'model', 'type', 'series',
+      'year', 'plate', 'vin'
+    ];
+    
+    let foundValues = [];
+    
+    // Check each vehicle field for meaningful data
+    Object.entries(vehicleFieldsData).forEach(([fieldId, value]) => {
+      if (value && typeof value === 'string' && value.trim() !== '') {
+        // Check if this field name contains vehicle-related keywords
+        const isVehicleField = vehicleIdentifiers.some(identifier => 
+          fieldId.toLowerCase().includes(identifier)
+        );
+        
+        if (isVehicleField) {
+          foundValues.push(value.trim());
+        }
+      }
+    });
+    
+    // If we found vehicle-related values, combine them
+    if (foundValues.length > 0) {
+      return foundValues.join(' ');
+    }
+    
+    // Priority 4: Look for make and model specifically
     const makeField = Object.entries(vehicleFieldsData).find(([key, value]) => 
-      key.toLowerCase().includes('make') || value?.toLowerCase().includes('make')
+      key.toLowerCase().includes('make') && value && value.trim() !== ''
     );
     const modelField = Object.entries(vehicleFieldsData).find(([key, value]) => 
-      key.toLowerCase().includes('model') || value?.toLowerCase().includes('model')
+      key.toLowerCase().includes('model') && value && value.trim() !== ''
     );
     
-    const make = makeField ? makeField[1] : 'Unknown';
-    const model = modelField ? modelField[1] : 'Unknown';
+    if (makeField && modelField) {
+      return `${makeField[1]} ${modelField[1]}`;
+    } else if (makeField) {
+      return makeField[1];
+    } else if (modelField) {
+      return modelField[1];
+    }
     
-    return `${make} ${model}`;
+    // Priority 5: Look for any non-empty field value
+    const anyField = Object.entries(vehicleFieldsData).find(([key, value]) => 
+      value && typeof value === 'string' && value.trim() !== ''
+    );
+    
+    if (anyField) {
+      return anyField[1];
+    }
+    
+    // Fallback
+    return 'Vehicle details not available';
+  };
+
+  const getVehicleDetails = (workOrder) => {
+    if (!workOrder?.vehicle?.vehicleFields) return [];
+    
+    const vehicleFieldsData = workOrder.vehicle.vehicleFields || {};
+    const details = [];
+    
+    // Map field IDs to their readable names using the vehicle fields data
+    Object.entries(vehicleFieldsData).forEach(([fieldId, value]) => {
+      if (value && typeof value === 'string' && value.trim() !== '') {
+        // Find the field definition in vehicleFields
+        const fieldDefinition = vehicleFields.find(field => field.id === fieldId);
+        
+        if (fieldDefinition && fieldDefinition.name) {
+          details.push({
+            label: fieldDefinition.name,
+            value: value.trim()
+          });
+        } else {
+          // Fallback: use the field ID as label (formatted)
+          details.push({
+            label: fieldId.replace(/_/g, ' ').replace(/\b\w/g, l => l.toUpperCase()),
+            value: value.trim()
+          });
+        }
+      }
+    });
+    
+    // Sort details by field order (if available)
+    details.sort((a, b) => {
+      const fieldA = vehicleFields.find(field => field.name === a.label);
+      const fieldB = vehicleFields.find(field => field.name === b.label);
+      const orderA = fieldA ? fieldA.order || 999 : 999;
+      const orderB = fieldB ? fieldB.order || 999 : 999;
+      return orderA - orderB;
+    });
+    
+    return details;
   };
 
   const calculateTotal = (workOrder) => {
+    // Use stored total from work order if available (this is the source of truth)
+    if (workOrder.total !== undefined && workOrder.total !== null) {
+      return Number(workOrder.total) || 0;
+    }
+    
+    // Fallback: calculate from stored values including tax
     const servicesTotal = (workOrder.services || []).reduce((sum, service) => {
       return sum + (Number(service.price) || 0);
     }, 0);
@@ -205,7 +359,12 @@ const WorkOrderDashboard = ({ onNavigateToCreate, onViewWorkOrder, onEditWorkOrd
       return sum + (Number(bundle.price) || 0);
     }, 0);
     
-    return servicesTotal + bundlesTotal;
+    const subtotal = servicesTotal + bundlesTotal;
+    
+    // Add tax amount if available
+    const taxAmount = Number(workOrder.taxAmount) || 0;
+    
+    return subtotal + taxAmount;
   };
 
   const getStatusColorObj = (statusName) => {
@@ -321,76 +480,95 @@ const WorkOrderDashboard = ({ onNavigateToCreate, onViewWorkOrder, onEditWorkOrd
   // Handle automatic status progression
   // Handle view work order
   const handleViewWorkOrder = (workOrder) => {
+    console.log('Opening view dialog for work order:', workOrder.id);
     setViewWorkOrderDialog({ open: true, workOrder });
   };
 
-  // Handle edit work order
-  const handleEditWorkOrder = (workOrder) => {
-    console.log('Opening edit dialog for work order:', workOrder.id);
-    
-    // Initialize form data with current work order data
-    setEditFormData({
-      customerName: workOrder.customer?.name || workOrder.customerName || '',
-      customerPhone: workOrder.customer?.phone || workOrder.customerPhone || '',
-      customerEmail: workOrder.customer?.email || workOrder.customerEmail || '',
-      vehicleMake: workOrder.vehicle?.make || workOrder.vehicleMake || '',
-      vehicleModel: workOrder.vehicle?.model || workOrder.vehicleModel || '',
-      vehicleYear: workOrder.vehicle?.year || workOrder.vehicleYear || '',
-      vehicleColor: workOrder.vehicle?.color || workOrder.vehicleColor || '',
-      vehicleLicensePlate: workOrder.vehicle?.licensePlate || workOrder.vehicleLicensePlate || '',
-      notes: workOrder.notes || ''
-    });
-    
-    setEditWorkOrderDialog({ open: true, workOrder });
-  };
 
-  // Handle form input changes
-  const handleEditFormChange = (field, value) => {
-    setEditFormData(prev => ({
-      ...prev,
-      [field]: value
-    }));
-  };
 
-  // Handle save edit
-  const handleSaveEdit = async () => {
-    if (!editWorkOrderDialog.workOrder) return;
+  // Price calculation functions (same as in Step5ServicesBundles)
+  const getServicePrice = (service, workOrder) => {
+    // First try the simple price field
+    const simplePrice = Number(service.price) || 0;
     
-    setSavingEdit(true);
-    try {
-      const workOrderRef = doc(db, 'workOrders', editWorkOrderDialog.workOrder.id);
-      
-      // Prepare update data
-      const updateData = {
-        customerName: editFormData.customerName,
-        customerPhone: editFormData.customerPhone,
-        customerEmail: editFormData.customerEmail,
-        vehicleMake: editFormData.vehicleMake,
-        vehicleModel: editFormData.vehicleModel,
-        vehicleYear: editFormData.vehicleYear,
-        vehicleColor: editFormData.vehicleColor,
-        vehicleLicensePlate: editFormData.vehicleLicensePlate,
-        notes: editFormData.notes,
-        lastUpdated: serverTimestamp()
-      };
-
-      await updateDoc(workOrderRef, updateData);
-      
-      console.log('Work order updated successfully');
-      setEditWorkOrderDialog({ open: false, workOrder: null });
-      setEditFormData({});
-      
-    } catch (error) {
-      console.error('Error updating work order:', error);
-      alert('Failed to update work order. Please try again.');
-    } finally {
-      setSavingEdit(false);
+    // Check if we have customer group with categoryType for pricing
+    const customerGroup = workOrder?.customer?.group;
+    if (!customerGroup?.categoryType) {
+      return simplePrice;
     }
+    
+    // Check if service has category-specific pricing
+    if (service.prices && customerGroup.categoryType) {
+      const categoryId = customerGroup.categoryType;
+      const priceKeys = Object.keys(service.prices);
+      
+      // Look for any price that starts with the category ID
+      for (const priceKey of priceKeys) {
+        if (priceKey.startsWith(`${categoryId}_`)) {
+          const categoryPrice = service.prices[priceKey];
+          return Number(categoryPrice) || 0;
+        }
+      }
+    }
+    
+    return simplePrice;
   };
+
+  const getBundlePrice = (bundle, workOrder) => {
+    // First try the simple price field
+    const simplePrice = Number(bundle.price) || 0;
+    
+    // Check if we have customer group with categoryType for pricing
+    const customerGroup = workOrder?.customer?.group;
+    if (!customerGroup?.categoryType) {
+      return simplePrice;
+    }
+    
+    // Check if bundle has category-specific pricing
+    if (bundle.prices && customerGroup.categoryType) {
+      const categoryId = customerGroup.categoryType;
+      const priceKeys = Object.keys(bundle.prices);
+      
+      // Look for any price that starts with the category ID
+      for (const priceKey of priceKeys) {
+        if (priceKey.startsWith(`${categoryId}_`)) {
+          const categoryPrice = bundle.prices[priceKey];
+          return Number(categoryPrice) || 0;
+        }
+      }
+    }
+    
+    return simplePrice;
+  };
+
+
+
 
   // Handle delete work order
   const handleDeleteWorkOrder = (workOrder) => {
     setDeleteWorkOrderDialog({ open: true, workOrder });
+  };
+
+  // Actually delete the work order from Firestore
+  const handleConfirmDelete = async () => {
+    if (!deleteWorkOrderDialog.workOrder) return;
+    
+    setDeleting(true);
+    try {
+      await deleteDoc(doc(db, 'workOrders', deleteWorkOrderDialog.workOrder.id));
+      
+      // Close dialog and reset state
+      setDeleteWorkOrderDialog({ open: false, workOrder: null });
+      setDeleting(false);
+      
+      // Show success message (you might want to add a snackbar or notification)
+      console.log('Work order deleted successfully');
+      
+    } catch (error) {
+      console.error('Error deleting work order:', error);
+      setDeleting(false);
+      // You might want to show an error message here
+    }
   };
 
   const handleStatusProgression = async (workOrder) => {
@@ -450,17 +628,71 @@ const WorkOrderDashboard = ({ onNavigateToCreate, onViewWorkOrder, onEditWorkOrd
     setSubmittingInvoice(true);
 
     try {
+      // Debug tax information
+      console.log('=== CREATING INVOICE ===');
+      console.log('Work order subtotal:', workOrder.subtotal);
+      console.log('Work order tax amount:', workOrder.taxAmount);
+      console.log('Work order total:', workOrder.total);
+      console.log('Services with tax:', workOrder.services?.map(s => ({ name: s.name, price: s.price, taxAmount: s.taxAmount, totalWithTax: s.totalWithTax })));
+      console.log('Bundles with tax:', workOrder.bundles?.map(b => ({ name: b.name, price: b.price, taxAmount: b.taxAmount, totalWithTax: b.totalWithTax })));
+      
+      // Debug Standard bundle specifically
+      const standardBundle = workOrder.bundles?.find(b => b.name === 'Standard Car Cleaning Package');
+      if (standardBundle) {
+        console.log('🔍 STANDARD BUNDLE IN WORK ORDER:');
+        console.log('  - Name:', standardBundle.name);
+        console.log('  - Price:', standardBundle.price);
+        console.log('  - Tax Amount:', standardBundle.taxAmount);
+        console.log('  - Total With Tax:', standardBundle.totalWithTax);
+        console.log('  - Tax IDs:', standardBundle.taxIds);
+      }
+      
+      // Get the selected payment method details
+      const selectedPaymentMethodDetails = paymentMethods.find(method => method.id === selectedPaymentMethod);
+      
+      // Calculate payment status and due date
+      const invoiceDate = new Date();
+      const dueDate = calculateDueDate(invoiceDate, selectedPaymentMethodDetails);
+      const paymentStatus = calculatePaymentStatus(selectedPaymentMethodDetails, invoiceDate);
+      
+      console.log('=== PAYMENT CALCULATIONS ===');
+      console.log('Selected payment method:', selectedPaymentMethodDetails);
+      console.log('Invoice date:', invoiceDate);
+      console.log('Due date:', dueDate);
+      console.log('Payment status:', paymentStatus);
+      console.log('Is immediate cash:', isImmediateCash(selectedPaymentMethodDetails));
+      
       // Create invoice data
       const invoiceData = {
         ...workOrder,
         workOrderId: workOrder.id,
         paymentMethod: selectedPaymentMethod,
+        paymentMethodDetails: selectedPaymentMethodDetails, // Store full payment method details
+        paymentStatus: paymentStatus, // 'paid', 'pending', 'overdue'
+        dueDate: dueDate, // Calculated due date
+        settlementMethod: null, // Will be set when settled
+        settledAt: null, // Will be set when settled
         notes: invoiceNotes,
         status: 'issued',
         issuedAt: serverTimestamp(),
         createdAt: serverTimestamp(),
         updatedAt: serverTimestamp()
       };
+      
+      console.log('Invoice created with stored tax data');
+      
+      // Debug what's being stored in the invoice
+      const standardBundleInInvoice = invoiceData.bundles?.find(b => b.name === 'Standard Car Cleaning Package');
+      if (standardBundleInInvoice) {
+        console.log('🔍 STANDARD BUNDLE IN INVOICE DATA:');
+        console.log('  - Name:', standardBundleInInvoice.name);
+        console.log('  - Price:', standardBundleInInvoice.price);
+        console.log('  - Tax Amount:', standardBundleInInvoice.taxAmount);
+        console.log('  - Total With Tax:', standardBundleInInvoice.totalWithTax);
+        console.log('  - Tax IDs:', standardBundleInInvoice.taxIds);
+      }
+      
+      console.log('=== END INVOICE CREATION ===');
 
       // Remove work order specific fields
       delete invoiceData.id;
@@ -469,7 +701,31 @@ const WorkOrderDashboard = ({ onNavigateToCreate, onViewWorkOrder, onEditWorkOrd
       delete invoiceData.updatedAt;
 
       // Add to invoices collection
-      await addDoc(collection(db, 'invoices'), invoiceData);
+      const invoiceRef = await addDoc(collection(db, 'invoices'), invoiceData);
+
+      // If immediate cash payment, add to vault
+      if (isImmediateCash(selectedPaymentMethodDetails)) {
+        try {
+          const vaultEntry = {
+            type: 'cash_received',
+            amount: calculateTotal(workOrder),
+            description: `Cash received for invoice ${invoiceData.invoiceNumber || 'TBD'}`,
+            paymentMethod: selectedPaymentMethod,
+            paymentMethodDetails: selectedPaymentMethodDetails,
+            invoiceId: invoiceRef.id,
+            invoiceNumber: invoiceData.invoiceNumber,
+            customerName: getCustomerName(workOrder),
+            createdAt: serverTimestamp(),
+            updatedAt: serverTimestamp()
+          };
+          
+          await addDoc(collection(db, 'vaultEntries'), vaultEntry);
+          console.log('✅ Vault entry added for immediate cash payment');
+        } catch (vaultError) {
+          console.error('❌ Error adding vault entry:', vaultError);
+          // Don't fail the invoice creation if vault entry fails
+        }
+      }
 
       // Update work order to mark as completed
       await updateDoc(doc(db, 'workOrders', workOrder.id), {
@@ -739,15 +995,6 @@ const WorkOrderDashboard = ({ onNavigateToCreate, onViewWorkOrder, onEditWorkOrd
                               <ViewIcon />
                             </IconButton>
                           </Tooltip>
-                          <Tooltip title="Edit">
-                            <IconButton
-                              size="small"
-                              onClick={() => handleEditWorkOrder(workOrder)}
-                              color="primary"
-                            >
-                              <EditIcon />
-                            </IconButton>
-                          </Tooltip>
                           <Tooltip title="Update Status">
                             <IconButton
                               size="small"
@@ -839,6 +1086,59 @@ const WorkOrderDashboard = ({ onNavigateToCreate, onViewWorkOrder, onEditWorkOrd
                       <Typography variant="h5" fontWeight="bold" sx={{ color: 'inherit' }}>
                         ${total}
                       </Typography>
+                      
+                      {/* Permanent Action Icons */}
+                      <Box sx={{ display: 'flex', alignItems: 'center', gap: 0.5 }}>
+                        <Tooltip title="View Details">
+                          <IconButton
+                            size="small"
+                            onClick={(e) => {
+                              e.stopPropagation();
+                              handleViewWorkOrder(workOrder);
+                            }}
+                            sx={{ color: 'rgba(255,255,255,0.8)' }}
+                          >
+                            <ViewIcon />
+                          </IconButton>
+                        </Tooltip>
+                        
+                        <Tooltip title="Delete">
+                          <IconButton
+                            size="small"
+                            onClick={(e) => {
+                              e.stopPropagation();
+                              handleDeleteWorkOrder(workOrder);
+                            }}
+                            sx={{ color: 'rgba(255,255,255,0.8)' }}
+                          >
+                            <DeleteIcon />
+                          </IconButton>
+                        </Tooltip>
+                        
+                        <Tooltip 
+                          title={
+                            canProgressToNextStatus(workOrder) 
+                              ? `Next: ${getNextStatus(workOrder.status)}`
+                              : 'Final Status'
+                          }
+                        >
+                          <IconButton
+                            size="small"
+                            onClick={(e) => {
+                              e.stopPropagation();
+                              handleStatusProgression(workOrder);
+                            }}
+                            disabled={!canProgressToNextStatus(workOrder) || updatingStatus === workOrder.id}
+                            sx={{ 
+                              color: canProgressToNextStatus(workOrder) ? 'rgba(255,255,255,0.9)' : 'rgba(255,255,255,0.5)',
+                              opacity: canProgressToNextStatus(workOrder) ? 1 : 0.6
+                            }}
+                          >
+                            {updatingStatus === workOrder.id ? <CircularProgress size={16} /> : <UpdateIcon />}
+                          </IconButton>
+                        </Tooltip>
+                      </Box>
+                      
                       <IconButton 
                         size="small" 
                         sx={{ color: 'inherit' }}
@@ -861,10 +1161,33 @@ const WorkOrderDashboard = ({ onNavigateToCreate, onViewWorkOrder, onEditWorkOrd
                         <Typography variant="subtitle1" fontWeight="600" sx={{ mb: 0.5 }}>
                         {getCustomerName(workOrder)}
                       </Typography>
-                        <Typography variant="body2" color="text.secondary" sx={{ display: 'flex', alignItems: 'center', gap: 0.5 }}>
+                        <Box sx={{ display: 'flex', alignItems: 'center', gap: 0.5, flexWrap: 'wrap' }}>
                           <VehicleIcon sx={{ fontSize: 16 }} />
-                          {getVehicleInfo(workOrder)}
-                      </Typography>
+                          <Typography variant="body2" color="text.secondary" sx={{ fontWeight: 500 }}>
+                            {getVehicleInfo(workOrder)}
+                          </Typography>
+                        </Box>
+                        
+                        {/* Vehicle Details */}
+                        {getVehicleDetails(workOrder).length > 0 && (
+                          <Box sx={{ mt: 1, display: 'flex', flexWrap: 'wrap', gap: 1 }}>
+                            {getVehicleDetails(workOrder).slice(0, 3).map((detail, index) => (
+                              <Box key={index} sx={{ display: 'flex', alignItems: 'center', gap: 0.5 }}>
+                                <Typography variant="caption" color="text.secondary" sx={{ fontSize: '0.7rem' }}>
+                                  {detail.label}:
+                                </Typography>
+                                <Typography variant="caption" sx={{ fontSize: '0.7rem', fontWeight: 500 }}>
+                                  {detail.value}
+                                </Typography>
+                              </Box>
+                            ))}
+                            {getVehicleDetails(workOrder).length > 3 && (
+                              <Typography variant="caption" color="text.secondary" sx={{ fontSize: '0.7rem' }}>
+                                +{getVehicleDetails(workOrder).length - 3} more
+                              </Typography>
+                            )}
+                          </Box>
+                        )}
                     </Box>
 
                       {/* Services & Bundles Summary */}
@@ -881,7 +1204,7 @@ const WorkOrderDashboard = ({ onNavigateToCreate, onViewWorkOrder, onEditWorkOrd
                             </Box>
                           {workOrder.services && workOrder.services.length > 0 && (
                             <Box sx={{ pl: 1 }}>
-                              {workOrder.services.slice(0, 2).map((service, index) => (
+                              {workOrder.services.map((service, index) => (
                                 <Typography 
                                   key={service.id || index}
                                   variant="caption" 
@@ -896,19 +1219,6 @@ const WorkOrderDashboard = ({ onNavigateToCreate, onViewWorkOrder, onEditWorkOrd
                                   • {service.name}
                                 </Typography>
                               ))}
-                              {workOrder.services.length > 2 && (
-                                <Typography 
-                                  variant="caption" 
-                                  color="primary.main" 
-                                  sx={{ 
-                                    display: 'block', 
-                                    fontSize: '0.7rem',
-                                    fontWeight: 500
-                                  }}
-                                >
-                                  +{workOrder.services.length - 2} more
-                                </Typography>
-                              )}
                       </Box>
                           )}
                         </Box>
@@ -925,7 +1235,7 @@ const WorkOrderDashboard = ({ onNavigateToCreate, onViewWorkOrder, onEditWorkOrd
                       </Box>
                           {workOrder.bundles && workOrder.bundles.length > 0 && (
                             <Box sx={{ pl: 1 }}>
-                              {workOrder.bundles.slice(0, 2).map((bundle, index) => (
+                              {workOrder.bundles.map((bundle, index) => (
                                 <Typography 
                                   key={bundle.id || index}
                                   variant="caption" 
@@ -940,19 +1250,6 @@ const WorkOrderDashboard = ({ onNavigateToCreate, onViewWorkOrder, onEditWorkOrd
                                   • {bundle.name}
                                 </Typography>
                               ))}
-                              {workOrder.bundles.length > 2 && (
-                                <Typography 
-                                  variant="caption" 
-                                  color="secondary.main" 
-                                  sx={{ 
-                                    display: 'block', 
-                                    fontSize: '0.7rem',
-                                    fontWeight: 500
-                                  }}
-                                >
-                                  +{workOrder.bundles.length - 2} more
-                                </Typography>
-                              )}
                             </Box>
                           )}
                         </Box>
@@ -999,7 +1296,7 @@ const WorkOrderDashboard = ({ onNavigateToCreate, onViewWorkOrder, onEditWorkOrd
                     </CardContent>
                   </Collapse>
 
-                  {/* Collapsible Actions */}
+                  {/* Collapsible Actions - Now Empty since icons moved to header */}
                   <Collapse in={isExpanded} timeout="auto" unmountOnExit>
                     <CardActions sx={{ 
                       p: 2, 
@@ -1007,102 +1304,7 @@ const WorkOrderDashboard = ({ onNavigateToCreate, onViewWorkOrder, onEditWorkOrd
                       gap: 1,
                       flexWrap: 'wrap'
                     }}>
-                    {isMobile ? (
-                      /* Mobile Actions - Stacked */
-                      <Box sx={{ display: 'flex', flexDirection: 'column', gap: 1, width: '100%' }}>
-                        <Button
-                          size="small"
-                          variant="outlined"
-                          onClick={() => handleViewWorkOrder(workOrder)}
-                          startIcon={<ViewIcon />}
-                          fullWidth
-                          sx={{ mb: 1 }}
-                        >
-                          View Details
-                        </Button>
-                        <Box sx={{ display: 'flex', gap: 1 }}>
-                          <Button
-                            size="small"
-                            variant="outlined"
-                            onClick={() => handleEditWorkOrder(workOrder)}
-                            startIcon={<EditIcon />}
-                            sx={{ flex: 1 }}
-                          >
-                            Edit
-                          </Button>
-                          <Tooltip 
-                            title={
-                              canProgressToNextStatus(workOrder) 
-                                ? `Next: ${getNextStatus(workOrder.status)}`
-                                : 'Final Status'
-                            }
-                          >
-                            <Button
-                              size="small"
-                              variant={canProgressToNextStatus(workOrder) ? "contained" : "outlined"}
-                              color={canProgressToNextStatus(workOrder) ? "primary" : "inherit"}
-                              onClick={() => handleStatusProgression(workOrder)}
-                              disabled={!canProgressToNextStatus(workOrder) || updatingStatus === workOrder.id}
-                              startIcon={updatingStatus === workOrder.id ? <CircularProgress size={16} /> : <UpdateIcon />}
-                              sx={{ flex: 1 }}
-                            >
-                              {updatingStatus === workOrder.id ? 'Updating...' : 'Status'}
-                            </Button>
-                          </Tooltip>
-                    </Box>
-                      </Box>
-                    ) : (
-                      /* Desktop/Tablet Actions - Horizontal */
-                      <Box sx={{ display: 'flex', gap: 1, width: '100%', justifyContent: 'space-between' }}>
-                        <Box sx={{ display: 'flex', gap: 0.5 }}>
-                          <Tooltip title="View Details">
-                        <IconButton
-                          size="small"
-                          onClick={() => handleViewWorkOrder(workOrder)}
-                          color="primary"
-                        >
-                          <ViewIcon />
-                        </IconButton>
-                          </Tooltip>
-                          <Tooltip title="Edit">
-                        <IconButton
-                          size="small"
-                          onClick={() => handleEditWorkOrder(workOrder)}
-                          color="primary"
-                        >
-                          <EditIcon />
-                        </IconButton>
-                          </Tooltip>
-                          <Tooltip title="Delete">
-                        <IconButton
-                          size="small"
-                          onClick={() => handleDeleteWorkOrder(workOrder)}
-                          color="error"
-                        >
-                          <DeleteIcon />
-                        </IconButton>
-                          </Tooltip>
-                      </Box>
-                        <Tooltip 
-                          title={
-                            canProgressToNextStatus(workOrder) 
-                              ? `Next: ${getNextStatus(workOrder.status)}`
-                              : 'Final Status'
-                          }
-                        >
-                            <Button
-                              size="small"
-                              variant={canProgressToNextStatus(workOrder) ? "contained" : "outlined"}
-                              color={canProgressToNextStatus(workOrder) ? "primary" : "inherit"}
-                              onClick={() => handleStatusProgression(workOrder)}
-                              disabled={!canProgressToNextStatus(workOrder) || updatingStatus === workOrder.id}
-                              startIcon={updatingStatus === workOrder.id ? <CircularProgress size={16} /> : <UpdateIcon />}
-                            >
-                            {updatingStatus === workOrder.id ? 'Updating...' : 'Next Status'}
-                            </Button>
-                        </Tooltip>
-                      </Box>
-                    )}
+                      {/* Actions moved to permanent header section */}
                     </CardActions>
                   </Collapse>
                 </Card>
@@ -1171,62 +1373,130 @@ const WorkOrderDashboard = ({ onNavigateToCreate, onViewWorkOrder, onEditWorkOrd
                           <TableCell>Type</TableCell>
                           <TableCell>Notes</TableCell>
                           <TableCell align="right">Price</TableCell>
+                          <TableCell align="right">Tax</TableCell>
+                          <TableCell align="right">Total</TableCell>
                         </TableRow>
                       </TableHead>
                       <TableBody>
-                        {invoiceReviewDialog.workOrder.services?.map(service => (
-                          <TableRow key={`service-${service.id}`}>
-                            <TableCell>
-                              <Typography variant="subtitle2">{service.name}</Typography>
-                              <Typography variant="body2" color="text.secondary">
-                                {service.description}
-                              </Typography>
-                            </TableCell>
-                            <TableCell>
-                              <Chip label="Service" size="small" color="primary" />
-                            </TableCell>
-                            <TableCell>
-                              <Typography variant="body2">
-                                {service.notes || '-'}
-                              </Typography>
-                            </TableCell>
-                            <TableCell align="right">
-                              <Typography variant="subtitle2" color="primary">
-                                ${(Number(service.price) || 0).toFixed(2)}
-                              </Typography>
-                            </TableCell>
-                          </TableRow>
-                        ))}
+                        {invoiceReviewDialog.workOrder.services?.map(service => {
+                          // Use stored price and tax from work order
+                          const servicePrice = Number(service.price) || 0;
+                          const serviceTax = Number(service.taxAmount) || 0;
+                          const serviceTotal = servicePrice + serviceTax;
+                          
+                          return (
+                            <TableRow key={`service-${service.id}`}>
+                              <TableCell>
+                                <Typography variant="subtitle2">{service.name}</Typography>
+                                <Typography variant="body2" color="text.secondary">
+                                  {service.description}
+                                </Typography>
+                              </TableCell>
+                              <TableCell>
+                                <Chip label="Service" size="small" color="primary" />
+                              </TableCell>
+                              <TableCell>
+                                <Typography variant="body2">
+                                  {service.notes || '-'}
+                                </Typography>
+                              </TableCell>
+                              <TableCell align="right">
+                                <Typography variant="subtitle2" color="primary">
+                                  ${servicePrice.toFixed(2)}
+                                </Typography>
+                              </TableCell>
+                              <TableCell align="right">
+                                <Typography variant="subtitle2" color={serviceTax > 0 ? "primary" : "text.secondary"}>
+                                  ${serviceTax.toFixed(2)}
+                                </Typography>
+                              </TableCell>
+                              <TableCell align="right">
+                                <Typography variant="subtitle2" color="primary" fontWeight="bold">
+                                  ${serviceTotal.toFixed(2)}
+                                </Typography>
+                              </TableCell>
+                            </TableRow>
+                          );
+                        })}
                         
-                        {invoiceReviewDialog.workOrder.bundles?.map(bundle => (
-                          <TableRow key={`bundle-${bundle.id}`}>
-                            <TableCell>
-                              <Typography variant="subtitle2">{bundle.name}</Typography>
-                              <Typography variant="body2" color="text.secondary">
-                                {bundle.description}
-                              </Typography>
+                        {invoiceReviewDialog.workOrder.bundles?.map(bundle => {
+                          // Use stored price and tax from work order
+                          const bundlePrice = Number(bundle.price) || 0;
+                          const bundleTax = Number(bundle.taxAmount) || 0;
+                          const bundleTotal = bundlePrice + bundleTax;
+                          
+                          return (
+                            <TableRow key={`bundle-${bundle.id}`}>
+                              <TableCell>
+                                <Typography variant="subtitle2">{bundle.name}</Typography>
+                                <Typography variant="body2" color="text.secondary">
+                                  {bundle.description}
+                                </Typography>
+                              </TableCell>
+                              <TableCell>
+                                <Chip label="Bundle" size="small" color="secondary" />
+                              </TableCell>
+                              <TableCell>
+                                <Typography variant="body2">
+                                  {bundle.notes || '-'}
+                                </Typography>
+                              </TableCell>
+                              <TableCell align="right">
+                                <Typography variant="subtitle2" color="primary">
+                                  ${bundlePrice.toFixed(2)}
+                                </Typography>
+                              </TableCell>
+                              <TableCell align="right">
+                                <Typography variant="subtitle2" color={bundleTax > 0 ? "primary" : "text.secondary"}>
+                                  ${bundleTax.toFixed(2)}
+                                </Typography>
+                              </TableCell>
+                              <TableCell align="right">
+                                <Typography variant="subtitle2" color="primary" fontWeight="bold">
+                                  ${bundleTotal.toFixed(2)}
+                                </Typography>
+                              </TableCell>
+                            </TableRow>
+                          );
+                        })}
+                        
+                        {/* Subtotal Row */}
+                        <TableRow>
+                          <TableCell colSpan={3}>
+                            <Typography variant="h6" fontWeight="bold">Subtotal</Typography>
+                          </TableCell>
+                          <TableCell align="right">
+                            <Typography variant="h6" color="primary" fontWeight="bold">
+                              ${(Number(invoiceReviewDialog.workOrder.subtotal) || 0).toFixed(2)}
+                            </Typography>
+                          </TableCell>
+                          <TableCell></TableCell>
+                          <TableCell></TableCell>
+                        </TableRow>
+                        
+                        {/* Tax Row */}
+                        {Number(invoiceReviewDialog.workOrder.taxAmount) > 0 && (
+                          <TableRow>
+                            <TableCell colSpan={3}>
+                              <Typography variant="h6" fontWeight="bold">Tax</Typography>
                             </TableCell>
-                            <TableCell>
-                              <Chip label="Bundle" size="small" color="primary" />
-                            </TableCell>
-                            <TableCell>
-                              <Typography variant="body2">
-                                {bundle.notes || '-'}
-                              </Typography>
-                            </TableCell>
+                            <TableCell></TableCell>
                             <TableCell align="right">
-                              <Typography variant="subtitle2" color="primary">
-                                ${(Number(bundle.price) || 0).toFixed(2)}
+                              <Typography variant="h6" color="primary" fontWeight="bold">
+                                ${(Number(invoiceReviewDialog.workOrder.taxAmount) || 0).toFixed(2)}
                               </Typography>
                             </TableCell>
+                            <TableCell></TableCell>
                           </TableRow>
-                        ))}
+                        )}
                         
                         {/* Total Row */}
                         <TableRow>
                           <TableCell colSpan={3}>
                             <Typography variant="h6" fontWeight="bold">Total</Typography>
                           </TableCell>
+                          <TableCell></TableCell>
+                          <TableCell></TableCell>
                           <TableCell align="right">
                             <Typography variant="h6" color="success.main" fontWeight="bold">
                               ${(Number(calculateTotal(invoiceReviewDialog.workOrder)) || 0).toFixed(2)}
@@ -1252,19 +1522,35 @@ const WorkOrderDashboard = ({ onNavigateToCreate, onViewWorkOrder, onEditWorkOrd
                       onChange={(e) => setSelectedPaymentMethod(e.target.value)}
                       label="Select Payment Method"
                     >
-                      {paymentMethods.map((method) => (
-                        <MenuItem key={method.id} value={method.id}>
+                      {getAvailablePaymentMethods(invoiceReviewDialog.workOrder).length > 0 ? (
+                        getAvailablePaymentMethods(invoiceReviewDialog.workOrder).map((method) => (
+                          <MenuItem key={method.id} value={method.id}>
+                            <Box sx={{ display: 'flex', alignItems: 'center', gap: 1 }}>
+                              <PaymentIcon color="primary" />
+                              <Box>
+                                <Typography variant="body1">{method.name}</Typography>
+                                <Typography variant="caption" color="text.secondary">
+                                  {getPaymentMethodDisplay(method.id)}
+                                </Typography>
+                              </Box>
+                            </Box>
+                          </MenuItem>
+                        ))
+                      ) : (
+                        <MenuItem disabled>
                           <Box sx={{ display: 'flex', alignItems: 'center', gap: 1 }}>
-                            <PaymentIcon color="primary" />
+                            <PaymentIcon color="disabled" />
                             <Box>
-                              <Typography variant="body1">{method.name}</Typography>
+                              <Typography variant="body1" color="text.secondary">
+                                No payment methods available for this customer group
+                              </Typography>
                               <Typography variant="caption" color="text.secondary">
-                                {getPaymentMethodDisplay(method.id)}
+                                Please assign payment methods to the customer group
                               </Typography>
                             </Box>
                           </Box>
                         </MenuItem>
-                      ))}
+                      )}
                     </Select>
                   </FormControl>
                 </CardContent>
@@ -1313,7 +1599,7 @@ const WorkOrderDashboard = ({ onNavigateToCreate, onViewWorkOrder, onEditWorkOrd
         <DialogTitle>
           <Box sx={{ display: 'flex', alignItems: 'center', gap: 1 }}>
             <AssignmentIcon color="primary" />
-            <Typography variant="h6">Work Order Details</Typography>
+            <Typography variant="h6">View Work Order Details</Typography>
           </Box>
         </DialogTitle>
         <DialogContent>
@@ -1322,139 +1608,167 @@ const WorkOrderDashboard = ({ onNavigateToCreate, onViewWorkOrder, onEditWorkOrd
               {/* Customer Information */}
               <Card sx={{ mb: 2 }}>
                 <CardContent>
-                  <Typography variant="h6" gutterBottom sx={{ display: 'flex', alignItems: 'center', gap: 1 }}>
+                  <Typography variant="h6" sx={{ display: 'flex', alignItems: 'center', gap: 1, mb: 2 }}>
                     <PersonIcon color="primary" />
                     Customer Information
                   </Typography>
-                  <Typography><strong>Name:</strong> {viewWorkOrderDialog.workOrder.customerName}</Typography>
-                  <Typography><strong>Type:</strong> {viewWorkOrderDialog.workOrder.customerType === 'corporate' ? 'Corporate' : 'Individual'}</Typography>
-                  {viewWorkOrderDialog.workOrder.customerPhone && (
-                    <Typography><strong>Phone:</strong> {viewWorkOrderDialog.workOrder.customerPhone}</Typography>
-                  )}
-                  {viewWorkOrderDialog.workOrder.customerEmail && (
-                    <Typography><strong>Email:</strong> {viewWorkOrderDialog.workOrder.customerEmail}</Typography>
-                  )}
+                  <Box>
+                    <Typography variant="body1" sx={{ mb: 1 }}>
+                      <strong>Name:</strong> {getCustomerName(viewWorkOrderDialog.workOrder)}
+                    </Typography>
+                    <Typography variant="body1" sx={{ mb: 1 }}>
+                      <strong>Type:</strong> {viewWorkOrderDialog.workOrder.customerType === 'corporate' ? 'Corporate' : 'Individual'}
+                    </Typography>
+                    <Typography variant="body1" sx={{ mb: 1 }}>
+                      <strong>Customer Group:</strong> {viewWorkOrderDialog.workOrder.customer?.group?.name || 'N/A'}
+                    </Typography>
+                    <Typography variant="body1" sx={{ mb: 1 }}>
+                      <strong>Phone:</strong> {viewWorkOrderDialog.workOrder.customerPhone || 'N/A'}
+                    </Typography>
+                    <Typography variant="body1">
+                      <strong>Email:</strong> {viewWorkOrderDialog.workOrder.customerEmail || 'N/A'}
+                    </Typography>
+                  </Box>
                 </CardContent>
               </Card>
 
               {/* Vehicle Information */}
               <Card sx={{ mb: 2 }}>
                 <CardContent>
-                  <Typography variant="h6" gutterBottom sx={{ display: 'flex', alignItems: 'center', gap: 1 }}>
+                  <Typography variant="h6" sx={{ display: 'flex', alignItems: 'center', gap: 1, mb: 2 }}>
                     <VehicleIcon color="primary" />
                     Vehicle Information
                   </Typography>
-                  <Typography><strong>Make:</strong> {viewWorkOrderDialog.workOrder.vehicleMake}</Typography>
-                  <Typography><strong>Model:</strong> {viewWorkOrderDialog.workOrder.vehicleModel}</Typography>
-                  <Typography><strong>Year:</strong> {viewWorkOrderDialog.workOrder.vehicleYear}</Typography>
-                  <Typography><strong>Color:</strong> {viewWorkOrderDialog.workOrder.vehicleColor}</Typography>
-                  <Typography><strong>License Plate:</strong> {viewWorkOrderDialog.workOrder.vehicleLicensePlate}</Typography>
+                  <Box>
+                    <Typography variant="body1" sx={{ mb: 1 }}>
+                      <strong>Vehicle Type:</strong> {viewWorkOrderDialog.workOrder.vehicle?.vehicleType || viewWorkOrderDialog.workOrder.group?.name || 'Unknown'}
+                    </Typography>
+                    <Typography variant="body1" sx={{ mb: 1 }}>
+                      <strong>Vehicle Info:</strong> {getVehicleInfo(viewWorkOrderDialog.workOrder)}
+                    </Typography>
+                    
+                    {/* Vehicle Details */}
+                    {getVehicleDetails(viewWorkOrderDialog.workOrder).length > 0 ? (
+                      <Box sx={{ mt: 2 }}>
+                        <Typography variant="subtitle2" sx={{ mb: 1, fontWeight: 600, color: 'primary.main' }}>
+                          Vehicle Details:
+                        </Typography>
+                        <Grid container spacing={1}>
+                          {getVehicleDetails(viewWorkOrderDialog.workOrder).map((detail, index) => (
+                            <Grid item xs={12} sm={6} key={index}>
+                              <Box sx={{ display: 'flex', alignItems: 'center', gap: 1 }}>
+                                <Typography variant="body2" color="text.secondary" sx={{ fontWeight: 500, minWidth: '80px' }}>
+                                  {detail.label}:
+                                </Typography>
+                                <Typography variant="body2" sx={{ fontWeight: 500 }}>
+                                  {detail.value}
+                                </Typography>
+                              </Box>
+                            </Grid>
+                          ))}
+                        </Grid>
+                      </Box>
+                    ) : (
+                      <Typography variant="body2" color="text.secondary">
+                        No vehicle details available
+                      </Typography>
+                    )}
+                  </Box>
                 </CardContent>
               </Card>
 
               {/* Services & Bundles */}
               <Card sx={{ mb: 2 }}>
                 <CardContent>
-                  <Typography variant="h6" gutterBottom sx={{ display: 'flex', alignItems: 'center', gap: 1 }}>
-                    <ReceiptIcon color="primary" />
+                  <Typography variant="h6" sx={{ display: 'flex', alignItems: 'center', gap: 1, mb: 2 }}>
+                    <ServiceIcon color="primary" />
                     Services & Bundles
                   </Typography>
-                  {viewWorkOrderDialog.workOrder.services && viewWorkOrderDialog.workOrder.services.length > 0 && (
-                    <Box sx={{ mb: 2 }}>
-                      <Typography variant="subtitle1"><strong>Services:</strong></Typography>
-                      {viewWorkOrderDialog.workOrder.services.map((service, index) => (
-                        <Typography key={index} sx={{ ml: 2 }}>
-                          • {service.name} - ${service.price}
-                        </Typography>
-                      ))}
-                    </Box>
-                  )}
-                  {viewWorkOrderDialog.workOrder.bundles && viewWorkOrderDialog.workOrder.bundles.length > 0 && (
-                    <Box>
-                      <Typography variant="subtitle1"><strong>Bundles:</strong></Typography>
-                      {viewWorkOrderDialog.workOrder.bundles.map((bundle, index) => (
-                        <Typography key={index} sx={{ ml: 2 }}>
-                          • {bundle.name} - ${bundle.price}
-                        </Typography>
-                      ))}
-                    </Box>
-                  )}
-                  <Typography variant="h6" sx={{ mt: 2 }}>
-                    <strong>Total: ${viewWorkOrderDialog.workOrder.totalAmount || 0}</strong>
-                  </Typography>
+                  <Box>
+                    {/* Services */}
+                    {viewWorkOrderDialog.workOrder.services && viewWorkOrderDialog.workOrder.services.length > 0 && (
+                      <Box sx={{ mb: 2 }}>
+                        <Typography variant="subtitle1"><strong>Services:</strong></Typography>
+                        {viewWorkOrderDialog.workOrder.services.map((service, index) => {
+                          const servicePrice = getServicePrice(service, viewWorkOrderDialog.workOrder);
+                          return (
+                            <Box key={index} sx={{ ml: 2, display: 'flex', alignItems: 'center', gap: 1 }}>
+                              <Typography>• {service.name}</Typography>
+                              <Chip label={`$${servicePrice.toFixed(2)}`} size="small" color="primary" />
+                            </Box>
+                          );
+                        })}
+                      </Box>
+                    )}
+
+                    {/* Bundles */}
+                    {viewWorkOrderDialog.workOrder.bundles && viewWorkOrderDialog.workOrder.bundles.length > 0 && (
+                      <Box sx={{ mb: 2 }}>
+                        <Typography variant="subtitle1"><strong>Bundles:</strong></Typography>
+                        {viewWorkOrderDialog.workOrder.bundles.map((bundle, index) => {
+                          const bundlePrice = getBundlePrice(bundle, viewWorkOrderDialog.workOrder);
+                          return (
+                            <Box key={index} sx={{ ml: 2, display: 'flex', alignItems: 'center', gap: 1 }}>
+                              <Typography>• {bundle.name}</Typography>
+                              <Chip label={`$${bundlePrice.toFixed(2)}`} size="small" color="secondary" />
+                            </Box>
+                          );
+                        })}
+                      </Box>
+                    )}
+
+                    {/* Total */}
+                    <Divider sx={{ my: 2 }} />
+                    <Typography variant="h6" sx={{ display: 'flex', alignItems: 'center', gap: 1 }}>
+                      <strong>Total: ${((viewWorkOrderDialog.workOrder.services || []).reduce((sum, service) => {
+                        const servicePrice = getServicePrice(service, viewWorkOrderDialog.workOrder);
+                        return sum + servicePrice;
+                      }, 0) + (viewWorkOrderDialog.workOrder.bundles || []).reduce((sum, bundle) => {
+                        const bundlePrice = getBundlePrice(bundle, viewWorkOrderDialog.workOrder);
+                        return sum + bundlePrice;
+                      }, 0)).toFixed(2)}</strong>
+                      <Chip label="Amount" color="success" size="small" />
+                    </Typography>
+                  </Box>
                 </CardContent>
               </Card>
 
-              {/* Status & Dates */}
+              {/* Notes */}
               <Card sx={{ mb: 2 }}>
                 <CardContent>
-                  <Typography variant="h6" gutterBottom sx={{ display: 'flex', alignItems: 'center', gap: 1 }}>
-                    <UpdateIcon color="primary" />
-                    Status & Timeline
+                  <Typography variant="h6" sx={{ display: 'flex', alignItems: 'center', gap: 1, mb: 2 }}>
+                    <ReceiptIcon color="primary" />
+                    Notes
                   </Typography>
-                  <Typography><strong>Current Status:</strong> 
-                    <Chip 
-                      label={viewWorkOrderDialog.workOrder.status} 
-                      color="primary" 
-                      size="small" 
-                      sx={{ ml: 1 }}
-                    />
+                  <Typography variant="body1">
+                    {viewWorkOrderDialog.workOrder.notes || 'No notes available'}
                   </Typography>
-                  <Typography><strong>Created:</strong> {new Date(viewWorkOrderDialog.workOrder.createdAt?.toDate()).toLocaleString()}</Typography>
-                  {viewWorkOrderDialog.workOrder.lastUpdated && (
-                    <Typography><strong>Last Updated:</strong> {new Date(viewWorkOrderDialog.workOrder.lastUpdated.toDate()).toLocaleString()}</Typography>
-                  )}
                 </CardContent>
               </Card>
 
-              {/* Media Attachments */}
-              {viewWorkOrderDialog.workOrder.media && Object.keys(viewWorkOrderDialog.workOrder.media).length > 0 && (
-                <Card sx={{ mb: 2 }}>
-                  <CardContent>
-                    <Typography variant="h6" gutterBottom sx={{ display: 'flex', alignItems: 'center', gap: 1 }}>
-                      <PhotoCameraIcon color="primary" />
-                      Media Attachments
-                    </Typography>
-                    <Box sx={{ display: 'flex', gap: 1, flexWrap: 'wrap' }}>
-                      {Object.values(viewWorkOrderDialog.workOrder.media).map((mediaItem, index) => (
-                        <Box key={index} sx={{ width: 100, height: 100 }}>
-                          {mediaItem.type === 'video' ? (
-                            <Box
-                              sx={{
-                                width: 100,
-                                height: 100,
-                                borderRadius: 1,
-                                bgcolor: 'grey.200',
-                                display: 'flex',
-                                alignItems: 'center',
-                                justifyContent: 'center',
-                                border: '1px solid',
-                                borderColor: 'divider'
-                              }}
-                            >
-                              <VideoIcon sx={{ fontSize: 32, color: 'text.secondary' }} />
-                            </Box>
-                          ) : (
-                            <Box
-                              component="img"
-                              src={mediaItem.thumb || mediaItem.url}
-                              alt="Media attachment"
-                              sx={{
-                                width: 100,
-                                height: 100,
-                                borderRadius: 1,
-                                objectFit: 'cover',
-                                border: '1px solid',
-                                borderColor: 'divider'
-                              }}
-                            />
-                          )}
-                        </Box>
-                      ))}
-                    </Box>
-                  </CardContent>
-                </Card>
-              )}
+              {/* Work Order Details */}
+              <Card sx={{ mb: 2 }}>
+                <CardContent>
+                  <Typography variant="h6" sx={{ display: 'flex', alignItems: 'center', gap: 1, mb: 2 }}>
+                    <AssignmentIcon color="primary" />
+                    Work Order Details
+                  </Typography>
+                  <Typography><strong>Invoice Number:</strong> #{viewWorkOrderDialog.workOrder.invoiceNumber}</Typography>
+                  <Typography><strong>Status:</strong> {viewWorkOrderDialog.workOrder.status}</Typography>
+                  <Typography><strong>Created:</strong> {
+                    viewWorkOrderDialog.workOrder.createdAt?.toDate 
+                      ? new Date(viewWorkOrderDialog.workOrder.createdAt.toDate()).toLocaleString()
+                      : new Date(viewWorkOrderDialog.workOrder.createdAt).toLocaleString()
+                  }</Typography>
+                  {viewWorkOrderDialog.workOrder.lastUpdated && (
+                    <Typography><strong>Last Updated:</strong> {
+                      viewWorkOrderDialog.workOrder.lastUpdated.toDate 
+                        ? new Date(viewWorkOrderDialog.workOrder.lastUpdated.toDate()).toLocaleString()
+                        : new Date(viewWorkOrderDialog.workOrder.lastUpdated).toLocaleString()
+                    }</Typography>
+                  )}
+                </CardContent>
+              </Card>
             </Box>
           )}
         </DialogContent>
@@ -1465,162 +1779,6 @@ const WorkOrderDashboard = ({ onNavigateToCreate, onViewWorkOrder, onEditWorkOrd
         </DialogActions>
       </Dialog>
 
-      {/* Edit Work Order Dialog */}
-      <Dialog 
-        open={editWorkOrderDialog.open} 
-        onClose={() => setEditWorkOrderDialog({ open: false, workOrder: null })} 
-        maxWidth="sm" 
-        fullWidth
-        sx={{ zIndex: 9999 }}
-        BackdropProps={{ sx: { backgroundColor: 'rgba(0, 0, 0, 0.5)' } }}
-      >
-        <DialogTitle sx={{ bgcolor: 'primary.main', color: 'white' }}>
-          <Box sx={{ display: 'flex', alignItems: 'center', gap: 1 }}>
-            <EditIcon />
-            <Typography variant="h6">Edit Work Order</Typography>
-          </Box>
-        </DialogTitle>
-        <DialogContent sx={{ p: 3 }}>
-          <Typography variant="h6" color="primary" sx={{ mb: 3 }}>
-            Edit Work Order Details
-          </Typography>
-          
-          {/* Customer Information Section */}
-          <Box sx={{ mb: 3 }}>
-            <Typography variant="h6" sx={{ mb: 2, display: 'flex', alignItems: 'center', gap: 1 }}>
-              <PersonIcon color="primary" />
-              Customer Information
-            </Typography>
-            <Grid container spacing={2}>
-              <Grid item xs={12} sm={6}>
-                <TextField
-                  fullWidth
-                  label="Customer Name"
-                  value={editFormData.customerName || ''}
-                  onChange={(e) => handleEditFormChange('customerName', e.target.value)}
-                  variant="outlined"
-                  size="small"
-                />
-              </Grid>
-              <Grid item xs={12} sm={6}>
-                <TextField
-                  fullWidth
-                  label="Phone Number"
-                  value={editFormData.customerPhone || ''}
-                  onChange={(e) => handleEditFormChange('customerPhone', e.target.value)}
-                  variant="outlined"
-                  size="small"
-                />
-              </Grid>
-              <Grid item xs={12}>
-                <TextField
-                  fullWidth
-                  label="Email Address"
-                  value={editFormData.customerEmail || ''}
-                  onChange={(e) => handleEditFormChange('customerEmail', e.target.value)}
-                  variant="outlined"
-                  size="small"
-                />
-              </Grid>
-            </Grid>
-          </Box>
-
-          {/* Vehicle Information Section */}
-          <Box sx={{ mb: 3 }}>
-            <Typography variant="h6" sx={{ mb: 2, display: 'flex', alignItems: 'center', gap: 1 }}>
-              <VehicleIcon color="primary" />
-              Vehicle Information
-            </Typography>
-            <Grid container spacing={2}>
-              <Grid item xs={12} sm={6}>
-                <TextField
-                  fullWidth
-                  label="Make"
-                  value={editFormData.vehicleMake || ''}
-                  onChange={(e) => handleEditFormChange('vehicleMake', e.target.value)}
-                  variant="outlined"
-                  size="small"
-                />
-              </Grid>
-              <Grid item xs={12} sm={6}>
-                <TextField
-                  fullWidth
-                  label="Model"
-                  value={editFormData.vehicleModel || ''}
-                  onChange={(e) => handleEditFormChange('vehicleModel', e.target.value)}
-                  variant="outlined"
-                  size="small"
-                />
-              </Grid>
-              <Grid item xs={12} sm={4}>
-                <TextField
-                  fullWidth
-                  label="Year"
-                  value={editFormData.vehicleYear || ''}
-                  onChange={(e) => handleEditFormChange('vehicleYear', e.target.value)}
-                  variant="outlined"
-                  size="small"
-                />
-              </Grid>
-              <Grid item xs={12} sm={4}>
-                <TextField
-                  fullWidth
-                  label="Color"
-                  value={editFormData.vehicleColor || ''}
-                  onChange={(e) => handleEditFormChange('vehicleColor', e.target.value)}
-                  variant="outlined"
-                  size="small"
-                />
-              </Grid>
-              <Grid item xs={12} sm={4}>
-                <TextField
-                  fullWidth
-                  label="License Plate"
-                  value={editFormData.vehicleLicensePlate || ''}
-                  onChange={(e) => handleEditFormChange('vehicleLicensePlate', e.target.value)}
-                  variant="outlined"
-                  size="small"
-                />
-              </Grid>
-            </Grid>
-          </Box>
-
-          {/* Notes Section */}
-          <Box sx={{ mb: 2 }}>
-            <Typography variant="h6" sx={{ mb: 2, display: 'flex', alignItems: 'center', gap: 1 }}>
-              <ReceiptIcon color="primary" />
-              Additional Notes
-            </Typography>
-            <TextField
-              fullWidth
-              label="Work Order Notes"
-              value={editFormData.notes || ''}
-              onChange={(e) => handleEditFormChange('notes', e.target.value)}
-              variant="outlined"
-              multiline
-              rows={3}
-              size="small"
-            />
-          </Box>
-        </DialogContent>
-        <DialogActions sx={{ p: 2 }}>
-          <Button 
-            onClick={() => setEditWorkOrderDialog({ open: false, workOrder: null })}
-            disabled={savingEdit}
-          >
-            Cancel
-          </Button>
-          <Button 
-            variant="contained" 
-            color="primary"
-            onClick={handleSaveEdit}
-            disabled={savingEdit}
-            startIcon={savingEdit ? <CircularProgress size={20} /> : <CheckCircleIcon />}
-          >
-            {savingEdit ? 'Saving...' : 'Save Changes'}
-          </Button>
-        </DialogActions>
-      </Dialog>
 
       {/* Delete Work Order Dialog */}
       <Dialog 
@@ -1653,8 +1811,14 @@ const WorkOrderDashboard = ({ onNavigateToCreate, onViewWorkOrder, onEditWorkOrd
           <Button onClick={() => setDeleteWorkOrderDialog({ open: false, workOrder: null })}>
             Cancel
           </Button>
-          <Button variant="contained" color="error">
-            Delete
+          <Button 
+            variant="contained" 
+            color="error"
+            onClick={handleConfirmDelete}
+            disabled={deleting}
+            startIcon={deleting ? <CircularProgress size={20} /> : <DeleteIcon />}
+          >
+            {deleting ? 'Deleting...' : 'Delete'}
           </Button>
         </DialogActions>
       </Dialog>

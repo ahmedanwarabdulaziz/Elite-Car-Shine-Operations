@@ -87,6 +87,7 @@ const WorkOrderPage = () => {
 
   // Filter data for search
   const filteredCorporateCustomers = corporateCustomers.filter(c =>
+    c.name?.toLowerCase().includes(searchTerm.toLowerCase()) ||
     c.corporateName?.toLowerCase().includes(searchTerm.toLowerCase()) ||
     c.description?.toLowerCase().includes(searchTerm.toLowerCase())
   );

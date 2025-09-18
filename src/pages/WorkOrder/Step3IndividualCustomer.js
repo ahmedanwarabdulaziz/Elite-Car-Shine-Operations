@@ -240,9 +240,23 @@ const Step3IndividualCustomer = ({
         updatedAt: new Date(),
       };
       
-      await addDoc(collection(db, 'customers'), customerData);
+      // Create the customer and get the document reference
+      const docRef = await addDoc(collection(db, 'customers'), customerData);
+      
+      // Create the customer object with the new ID
+      const newCustomer = {
+        id: docRef.id,
+        ...customerData,
+        group: selectedGroup // Add the group information for compatibility
+      };
+      
       showSuccess('Customer created successfully');
       handleCloseDialog();
+      
+      // Automatically select the newly created customer and proceed to next step
+      if (onSelect) {
+        onSelect(newCustomer);
+      }
     } catch (error) {
       console.error('Error creating customer:', error);
       showError('Error creating customer');

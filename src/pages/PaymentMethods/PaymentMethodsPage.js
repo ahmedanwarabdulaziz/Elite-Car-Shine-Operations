@@ -72,6 +72,7 @@ const PaymentMethodsPage = () => {
     type: '',
     daysAllowed: '',
     isActive: true,
+    isImmediateCash: false,
   });
 
   // Subscribe to real-time data
@@ -95,6 +96,7 @@ const PaymentMethodsPage = () => {
         type: paymentMethod.type,
         daysAllowed: paymentMethod.daysAllowed || '',
         isActive: paymentMethod.isActive,
+        isImmediateCash: paymentMethod.isImmediateCash || false,
       });
     } else {
       setEditingPaymentMethod(null);
@@ -104,6 +106,7 @@ const PaymentMethodsPage = () => {
         type: '',
         daysAllowed: '',
         isActive: true,
+        isImmediateCash: false,
       });
     }
     setOpenDialog(true);
@@ -122,7 +125,7 @@ const PaymentMethodsPage = () => {
   };
 
   const handleInputChange = (field) => (event) => {
-    const value = field === 'isActive' ? event.target.checked : event.target.value;
+    const value = (field === 'isActive' || field === 'isImmediateCash') ? event.target.checked : event.target.value;
     setFormData({
       ...formData,
       [field]: value,
@@ -134,6 +137,15 @@ const PaymentMethodsPage = () => {
         ...prev,
         [field]: value,
         daysAllowed: '',
+      }));
+    }
+
+    // Auto-set isImmediateCash based on payment type
+    if (field === 'type') {
+      setFormData(prev => ({
+        ...prev,
+        [field]: value,
+        isImmediateCash: value === 'immediate_cash'
       }));
     }
   };
@@ -177,6 +189,7 @@ const PaymentMethodsPage = () => {
         description: formData.description.trim(),
         type: formData.type,
         isActive: formData.isActive,
+        isImmediateCash: formData.isImmediateCash,
       };
 
       // Only include daysAllowed if it's a credit-based payment type
@@ -239,6 +252,11 @@ const PaymentMethodsPage = () => {
       displayText += ` (${paymentMethod.daysAllowed} days)`;
     } else if (paymentMethod.type === 'end_of_month' && paymentMethod.daysAllowed) {
       displayText += ` (+${paymentMethod.daysAllowed} days)`;
+    }
+    
+    // Add immediate cash indicator
+    if (paymentMethod.isImmediateCash) {
+      displayText += ' 💰';
     }
     
     return displayText;
@@ -535,6 +553,23 @@ const PaymentMethodsPage = () => {
                   }
                   label="Active"
                 />
+              </Grid>
+
+              {/* Immediate Cash */}
+              <Grid item xs={12}>
+                <FormControlLabel
+                  control={
+                    <Switch
+                      checked={formData.isImmediateCash}
+                      onChange={handleInputChange('isImmediateCash')}
+                      color="primary"
+                    />
+                  }
+                  label="Immediate Cash Payment"
+                />
+                <Typography variant="caption" color="text.secondary" sx={{ ml: 4, display: 'block' }}>
+                  If enabled, this payment method will be considered immediate cash and can be used for settling pending invoices
+                </Typography>
               </Grid>
             </Grid>
           </Box>

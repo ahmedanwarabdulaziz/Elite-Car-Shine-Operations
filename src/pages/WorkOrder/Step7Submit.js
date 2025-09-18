@@ -166,7 +166,7 @@ const Step7Submit = ({
     if (!workOrderData?.customer) return 'Unknown Customer';
     
     if (workOrderData.customerType === 'corporate') {
-      return workOrderData.customer.corporateName || 'Unnamed Corporate Customer';
+      return workOrderData.customer.name || workOrderData.customer.corporateName || 'Unnamed Corporate Customer';
     } else {
       const customerFieldsData = workOrderData.customer.customerFields || {};
       const nameField = Object.values(customerFieldsData).find(value => value);

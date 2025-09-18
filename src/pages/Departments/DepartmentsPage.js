@@ -84,6 +84,14 @@ const DepartmentsPage = () => {
       invoices: false,
       employees: false,
       reports: false,
+      // New payment management permissions
+      pendingPayments: false,
+      corporateSettlement: false,
+      vault: false,
+      bankAccounts: false,
+      paymentReports: false,
+      expenseCategories: false,
+      expenses: false,
     },
     canPerformDetailing: false,
     detailingCapabilities: []
@@ -112,6 +120,14 @@ const DepartmentsPage = () => {
           invoices: false,
           employees: false,
           reports: false,
+          // New payment management permissions
+          pendingPayments: false,
+          corporateSettlement: false,
+          vault: false,
+          bankAccounts: false,
+          paymentReports: false,
+          expenseCategories: false,
+          expenses: false,
         },
         canPerformDetailing: department.canPerformDetailing || false,
         detailingCapabilities: department.detailingCapabilities || []
@@ -132,6 +148,14 @@ const DepartmentsPage = () => {
           invoices: false,
           employees: false,
           reports: false,
+          // New payment management permissions
+          pendingPayments: false,
+          corporateSettlement: false,
+          vault: false,
+          bankAccounts: false,
+          paymentReports: false,
+          expenseCategories: false,
+          expenses: false,
         },
         canPerformDetailing: false,
         detailingCapabilities: []
@@ -157,6 +181,13 @@ const DepartmentsPage = () => {
         invoices: false,
         employees: false,
         reports: false,
+        // New payment management permissions
+        pendingPayments: false,
+        vault: false,
+        bankAccounts: false,
+        paymentReports: false,
+        expenseCategories: false,
+        expenses: false,
       }
     });
   };
@@ -262,6 +293,14 @@ const DepartmentsPage = () => {
     invoices: 'Invoice Management',
     employees: 'Employee Management',
     reports: 'Reports & Analytics',
+    // New payment management permissions
+    pendingPayments: 'Pending Payments Management',
+    corporateSettlement: 'Corporate Settlement Management',
+    vault: 'Vault Management',
+    bankAccounts: 'Bank Accounts Management',
+    paymentReports: 'Payment Reports & Analytics',
+    expenseCategories: 'Expense Categories Management',
+    expenses: 'Expenses Management',
   };
 
   // Use existing services and bundles instead of hardcoded capabilities

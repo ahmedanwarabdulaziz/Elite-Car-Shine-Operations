@@ -320,34 +320,88 @@ const IndividualCustomersPage = () => {
     );
   };
 
-  // Get price for service in category
-  const getServicePrice = (service, categoryId) => {
-    if (!service.prices || !categoryId) return 0;
+  // Get all prices for service in category
+  const getServicePrices = (service, categoryId) => {
+    const prices = [];
     
-    // Try to find price for any vehicle type in this category
-    const vehicleTypes = vehicleCategories.filter(vc => vc.categoryId === categoryId);
-    for (const vehicleType of vehicleTypes) {
-      const priceKey = `${categoryId}_${vehicleType.id}`;
-      if (service.prices[priceKey]) {
-        return service.prices[priceKey];
+    if (service.prices && categoryId) {
+      // Look for all price keys that start with the category ID
+      const priceKeys = Object.keys(service.prices);
+      for (const priceKey of priceKeys) {
+        if (priceKey.startsWith(`${categoryId}_`)) {
+          const vehicleTypeId = priceKey.split('_')[1];
+          const vehicleType = vehicleCategories.find(vc => vc.id === vehicleTypeId);
+          const price = Number(service.prices[priceKey]);
+          
+          // Only add prices that are valid numbers greater than 0
+          if (price && price > 0 && !isNaN(price)) {
+            const vehicleTypeName = vehicleType ? vehicleType.name : vehicleTypeId;
+            // Don't show vehicle type if it's just "0" or empty
+            if (vehicleTypeName && vehicleTypeName !== '0' && vehicleTypeName.trim() !== '') {
+              prices.push({
+                vehicleType: vehicleTypeName,
+                price: price,
+                priceKey: priceKey
+              });
+            }
+          }
+        }
       }
     }
-    return 0;
+    
+    // Add default price if no category-specific prices or if it's different
+    const defaultPrice = Number(service.price);
+    if (defaultPrice && defaultPrice > 0 && !isNaN(defaultPrice) && (!prices.length || !prices.some(p => p.price === defaultPrice))) {
+      prices.push({
+        vehicleType: 'Default',
+        price: defaultPrice,
+        priceKey: 'default'
+      });
+    }
+    
+    return prices;
   };
 
-  // Get price for bundle in category
-  const getBundlePrice = (bundle, categoryId) => {
-    if (!bundle.prices || !categoryId) return 0;
+  // Get all prices for bundle in category
+  const getBundlePrices = (bundle, categoryId) => {
+    const prices = [];
     
-    // Try to find price for any vehicle type in this category
-    const vehicleTypes = vehicleCategories.filter(vc => vc.categoryId === categoryId);
-    for (const vehicleType of vehicleTypes) {
-      const priceKey = `${categoryId}_${vehicleType.id}`;
-      if (bundle.prices[priceKey]) {
-        return bundle.prices[priceKey];
+    if (bundle.prices && categoryId) {
+      // Look for all price keys that start with the category ID
+      const priceKeys = Object.keys(bundle.prices);
+      for (const priceKey of priceKeys) {
+        if (priceKey.startsWith(`${categoryId}_`)) {
+          const vehicleTypeId = priceKey.split('_')[1];
+          const vehicleType = vehicleCategories.find(vc => vc.id === vehicleTypeId);
+          const price = Number(bundle.prices[priceKey]);
+          
+          // Only add prices that are valid numbers greater than 0
+          if (price && price > 0 && !isNaN(price)) {
+            const vehicleTypeName = vehicleType ? vehicleType.name : vehicleTypeId;
+            // Don't show vehicle type if it's just "0" or empty
+            if (vehicleTypeName && vehicleTypeName !== '0' && vehicleTypeName.trim() !== '') {
+              prices.push({
+                vehicleType: vehicleTypeName,
+                price: price,
+                priceKey: priceKey
+              });
+            }
+          }
+        }
       }
     }
-    return 0;
+    
+    // Add default price if no category-specific prices or if it's different
+    const defaultPrice = Number(bundle.price);
+    if (defaultPrice && defaultPrice > 0 && !isNaN(defaultPrice) && (!prices.length || !prices.some(p => p.price === defaultPrice))) {
+      prices.push({
+        vehicleType: 'Default',
+        price: defaultPrice,
+        priceKey: 'default'
+      });
+    }
+    
+    return prices;
   };
 
   // Filter customers based on search term
@@ -741,28 +795,51 @@ const IndividualCustomersPage = () => {
                             Services
                           </Typography>
                           <Grid container spacing={1}>
-                            {getCategoryServices(formData.categoryType).map((service) => (
-                              <Grid item xs={12} sm={6} md={4} key={service.id}>
-                                <Paper sx={{ p: 2, border: `1px solid ${theme.palette.divider}`, borderRadius: 2 }}>
-                                  <Box sx={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
-                                    <Box>
+                            {getCategoryServices(formData.categoryType).map((service) => {
+                              const servicePrices = getServicePrices(service, formData.categoryType);
+                              return (
+                                <Grid item xs={12} sm={6} md={4} key={service.id}>
+                                  <Paper sx={{ p: 2, border: `1px solid ${theme.palette.divider}`, borderRadius: 2 }}>
+                                    <Box sx={{ mb: 1 }}>
                                       <Typography variant="body2" sx={{ fontWeight: 600 }}>
                                         {service.name}
                                       </Typography>
-                                      <Typography variant="caption" color="text.secondary">
-                                        {service.duration}
-                                      </Typography>
+                                      {service.duration && service.duration !== '0' && (
+                                        <Typography variant="caption" color="text.secondary">
+                                          {service.duration}
+                                        </Typography>
+                                      )}
                                     </Box>
-                                    <Box sx={{ display: 'flex', alignItems: 'center', gap: 0.5 }}>
-                                      <PriceIcon sx={{ fontSize: 16, color: 'success.main' }} />
-                                      <Typography variant="body2" sx={{ fontWeight: 600, color: 'success.main' }}>
-                                        ${getServicePrice(service, formData.categoryType)}
-                                      </Typography>
-                                    </Box>
-                                  </Box>
-                                </Paper>
-                              </Grid>
-                            ))}
+                                    
+                                    {/* Display all prices */}
+                                    {servicePrices && servicePrices.length > 0 ? (
+                                      <Box sx={{ display: 'flex', flexDirection: 'column', gap: 0.5 }}>
+                                        {servicePrices.map((priceInfo, index) => (
+                                          <Box key={index} sx={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
+                                            <Typography variant="caption" color="text.secondary" sx={{ fontSize: '0.7rem' }}>
+                                              {priceInfo.vehicleType}
+                                            </Typography>
+                                            <Box sx={{ display: 'flex', alignItems: 'center', gap: 0.5 }}>
+                                              <PriceIcon sx={{ fontSize: 14, color: 'success.main' }} />
+                                              <Typography variant="caption" sx={{ fontWeight: 600, color: 'success.main', fontSize: '0.7rem' }}>
+                                                ${priceInfo.price}
+                                              </Typography>
+                                            </Box>
+                                          </Box>
+                                        ))}
+                                      </Box>
+                                    ) : (
+                                      <Box sx={{ display: 'flex', alignItems: 'center', gap: 0.5 }}>
+                                        <PriceIcon sx={{ fontSize: 16, color: 'text.secondary' }} />
+                                        <Typography variant="caption" sx={{ fontWeight: 600, color: 'text.secondary' }}>
+                                          No pricing available
+                                        </Typography>
+                                      </Box>
+                                    )}
+                                  </Paper>
+                                </Grid>
+                              );
+                            })}
                           </Grid>
                         </Box>
                       )}
@@ -774,28 +851,51 @@ const IndividualCustomersPage = () => {
                             Bundles
                           </Typography>
                           <Grid container spacing={1}>
-                            {getCategoryBundles(formData.categoryType).map((bundle) => (
-                              <Grid item xs={12} sm={6} md={4} key={bundle.id}>
-                                <Paper sx={{ p: 2, border: `1px solid ${theme.palette.divider}`, borderRadius: 2 }}>
-                                  <Box sx={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
-                                    <Box>
+                            {getCategoryBundles(formData.categoryType).map((bundle) => {
+                              const bundlePrices = getBundlePrices(bundle, formData.categoryType);
+                              return (
+                                <Grid item xs={12} sm={6} md={4} key={bundle.id}>
+                                  <Paper sx={{ p: 2, border: `1px solid ${theme.palette.divider}`, borderRadius: 2 }}>
+                                    <Box sx={{ mb: 1 }}>
                                       <Typography variant="body2" sx={{ fontWeight: 600 }}>
                                         {bundle.name}
                                       </Typography>
-                                      <Typography variant="caption" color="text.secondary">
-                                        {bundle.duration}
-                                      </Typography>
+                                      {bundle.duration && bundle.duration !== '0' && (
+                                        <Typography variant="caption" color="text.secondary">
+                                          {bundle.duration}
+                                        </Typography>
+                                      )}
                                     </Box>
-                                    <Box sx={{ display: 'flex', alignItems: 'center', gap: 0.5 }}>
-                                      <PriceIcon sx={{ fontSize: 16, color: 'success.main' }} />
-                                      <Typography variant="body2" sx={{ fontWeight: 600, color: 'success.main' }}>
-                                        ${getBundlePrice(bundle, formData.categoryType)}
-                                      </Typography>
-                                    </Box>
-                                  </Box>
-                                </Paper>
-                              </Grid>
-                            ))}
+                                    
+                                    {/* Display all prices */}
+                                    {bundlePrices && bundlePrices.length > 0 ? (
+                                      <Box sx={{ display: 'flex', flexDirection: 'column', gap: 0.5 }}>
+                                        {bundlePrices.map((priceInfo, index) => (
+                                          <Box key={index} sx={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
+                                            <Typography variant="caption" color="text.secondary" sx={{ fontSize: '0.7rem' }}>
+                                              {priceInfo.vehicleType}
+                                            </Typography>
+                                            <Box sx={{ display: 'flex', alignItems: 'center', gap: 0.5 }}>
+                                              <PriceIcon sx={{ fontSize: 14, color: 'success.main' }} />
+                                              <Typography variant="caption" sx={{ fontWeight: 600, color: 'success.main', fontSize: '0.7rem' }}>
+                                                ${priceInfo.price}
+                                              </Typography>
+                                            </Box>
+                                          </Box>
+                                        ))}
+                                      </Box>
+                                    ) : (
+                                      <Box sx={{ display: 'flex', alignItems: 'center', gap: 0.5 }}>
+                                        <PriceIcon sx={{ fontSize: 16, color: 'text.secondary' }} />
+                                        <Typography variant="caption" sx={{ fontWeight: 600, color: 'text.secondary' }}>
+                                          No pricing available
+                                        </Typography>
+                                      </Box>
+                                    )}
+                                  </Paper>
+                                </Grid>
+                              );
+                            })}
                           </Grid>
                         </Box>
                       )}
