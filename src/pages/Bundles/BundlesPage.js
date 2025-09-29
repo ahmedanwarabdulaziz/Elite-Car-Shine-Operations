@@ -36,6 +36,8 @@ import {
   VisibilityOff as HideIcon,
   LocalOffer as BundleIcon,
   AttachMoney as PriceIcon,
+  DragIndicator as DragIcon,
+  Refresh as RefreshIcon,
 } from '@mui/icons-material';
 import { useNotification } from '../../components/Common/NotificationSystem';
 import useFirebase from '../../hooks/useFirebase';
@@ -78,6 +80,8 @@ const BundlesPage = () => {
   const [editingBundle, setEditingBundle] = useState(null);
   const [expandedBundle, setExpandedBundle] = useState(null);
   const [serviceSearchTerm, setServiceSearchTerm] = useState('');
+  const [draggedBundle, setDraggedBundle] = useState(null);
+  const [draggedOver, setDraggedOver] = useState(null);
   const [formData, setFormData] = useState({
     name: '',
     description: '',
@@ -88,27 +92,100 @@ const BundlesPage = () => {
     categoryStatus: {},
   });
 
-  // Subscribe to real-time data
+  // Subscribe to real-time data with retry mechanism
   useEffect(() => {
-    subscribeToBundles({ orderBy: 'name', orderDirection: 'asc' });
-    subscribeToServices({ orderBy: 'name', orderDirection: 'asc' });
-    subscribeToCategories({ orderBy: 'order', orderDirection: 'asc' });
-    subscribeToVehicleCategories({ orderBy: 'order', orderDirection: 'asc' });
+    const subscribeWithRetry = async () => {
+      try {
+        console.log('🔄 Subscribing to bundles data...');
+        console.log('📊 Query parameters:', { orderBy: 'order', orderDirection: 'asc' });
+        
+        // Try with order query first
+        subscribeToBundles({ orderBy: 'order', orderDirection: 'asc' });
+        
+        // Also try without order query as fallback
+        setTimeout(() => {
+          if (!bundles || bundles.length === 0) {
+            console.log('🔄 Fallback: Trying without order query...');
+            subscribeToBundles({}); // No order query
+          }
+        }, 2000);
+        subscribeToServices({ orderBy: 'order', orderDirection: 'asc' });
+        subscribeToCategories({ orderBy: 'order', orderDirection: 'asc' });
+        subscribeToVehicleCategories({ orderBy: 'order', orderDirection: 'asc' });
+        
+        console.log('✅ All subscriptions initiated');
+      } catch (error) {
+        console.error('❌ Error subscribing to data:', error);
+        // Retry after 3 seconds
+        setTimeout(() => {
+          console.log('🔄 Retrying subscription...');
+          subscribeWithRetry();
+        }, 3000);
+      }
+    };
+
+    subscribeWithRetry();
   }, [subscribeToBundles, subscribeToServices, subscribeToCategories, subscribeToVehicleCategories]);
 
-  // Handle errors
+  // Debug: Log bundles data when it changes
+  useEffect(() => {
+    console.log('🔍 Bundles Debug Info:', {
+      count: bundles?.length || 0,
+      bundles: bundles?.map(b => ({ 
+        id: b.id, 
+        name: b.name, 
+        order: b.order,
+        isActive: b.isActive 
+      })) || [],
+      loading: bundlesLoading,
+      error: bundlesError,
+      hasData: !!bundles && bundles.length > 0
+    });
+    
+    if (bundles && bundles.length > 0) {
+      console.log('✅ Bundles found! Your existing data is still there.');
+      console.log('📋 Bundle names:', bundles.map(b => b.name));
+    } else if (!bundlesLoading && !bundlesError) {
+      console.log('⚠️ No bundles found. This could mean:');
+      console.log('1. Data was deleted from Firebase');
+      console.log('2. Connection issues preventing data loading');
+      console.log('3. Firebase query problems');
+      console.log('4. Order field query issues');
+      
+      // Try to fetch without order query
+      console.log('🔄 Trying to fetch bundles without order query...');
+    }
+  }, [bundles, bundlesLoading, bundlesError]);
+
+  // Handle errors with better messaging
   useEffect(() => {
     if (bundlesError) {
-      showError(`Error loading bundles: ${bundlesError}`);
+      if (bundlesError.includes('network') || bundlesError.includes('disconnected')) {
+        showError('Network connection issue. Please check your internet connection and refresh the page.');
+      } else {
+        showError(`Error loading bundles: ${bundlesError}`);
+      }
     }
     if (servicesError) {
-      showError(`Error loading services: ${servicesError}`);
+      if (servicesError.includes('network') || servicesError.includes('disconnected')) {
+        showError('Network connection issue. Please check your internet connection and refresh the page.');
+      } else {
+        showError(`Error loading services: ${servicesError}`);
+      }
     }
     if (categoriesError) {
-      showError(`Error loading categories: ${categoriesError}`);
+      if (categoriesError.includes('network') || categoriesError.includes('disconnected')) {
+        showError('Network connection issue. Please check your internet connection and refresh the page.');
+      } else {
+        showError(`Error loading categories: ${categoriesError}`);
+      }
     }
     if (vehicleCategoriesError) {
-      showError(`Error loading vehicle categories: ${vehicleCategoriesError}`);
+      if (vehicleCategoriesError.includes('network') || vehicleCategoriesError.includes('disconnected')) {
+        showError('Network connection issue. Please check your internet connection and refresh the page.');
+      } else {
+        showError(`Error loading vehicle categories: ${vehicleCategoriesError}`);
+      }
     }
   }, [bundlesError, servicesError, categoriesError, vehicleCategoriesError, showError]);
 
@@ -224,6 +301,115 @@ const BundlesPage = () => {
     }
   };
 
+  // Drag and Drop Handlers
+  const handleDragStart = (e, bundle) => {
+    e.stopPropagation();
+    console.log('Drag started for bundle:', bundle.name);
+    setDraggedBundle(bundle);
+    e.dataTransfer.effectAllowed = 'move';
+    e.dataTransfer.setData('text/plain', bundle.id);
+  };
+
+  const handleDragOver = (e, bundle) => {
+    e.preventDefault();
+    e.stopPropagation();
+    e.dataTransfer.dropEffect = 'move';
+    console.log('Dragging over bundle:', bundle.name);
+    setDraggedOver(bundle);
+  };
+
+  const handleDragLeave = (e) => {
+    e.preventDefault();
+    e.stopPropagation();
+    setDraggedOver(null);
+  };
+
+  const handleDrop = async (e, targetBundle) => {
+    e.preventDefault();
+    e.stopPropagation();
+
+    if (draggedBundle && draggedBundle.id !== targetBundle.id) {
+      console.log(`Reordering bundle: ${draggedBundle.name} to position of ${targetBundle.name}`);
+
+      try {
+        // Get current bundles array
+        const currentBundles = [...bundles];
+
+        // Find indices of dragged and target bundles
+        const draggedIndex = currentBundles.findIndex(b => b.id === draggedBundle.id);
+        const targetIndex = currentBundles.findIndex(b => b.id === targetBundle.id);
+
+        if (draggedIndex === -1 || targetIndex === -1) {
+          showError('Error: Could not find bundles to reorder');
+          return;
+        }
+
+        // Remove dragged bundle from its current position
+        const [draggedItem] = currentBundles.splice(draggedIndex, 1);
+
+        // Insert it at the target position
+        currentBundles.splice(targetIndex, 0, draggedItem);
+
+        // Update order field for all bundles with proper numbering (1, 2, 3, etc.)
+        const updatePromises = currentBundles.map(async (bundle, index) => {
+          return updateBundle(bundle.id, { order: index + 1 }); // Start from 1, not 0
+        });
+
+        await Promise.all(updatePromises);
+
+        showSuccess(`Moved ${draggedBundle.name} to position of ${targetBundle.name}`);
+        console.log('Bundles reordered successfully');
+
+      } catch (error) {
+        console.error('Error reordering bundles:', error);
+        showError(`Error reordering bundles: ${error.message}`);
+      }
+    }
+
+    setDraggedBundle(null);
+    setDraggedOver(null);
+  };
+
+  const handleDragEnd = () => {
+    setDraggedBundle(null);
+    setDraggedOver(null);
+  };
+
+  // Initialize order field for existing bundles that don't have one
+  const initializeBundleOrder = async () => {
+    if (bundles && bundles.length > 0) {
+      // Check if any bundles need order initialization
+      const bundlesNeedingOrder = bundles.filter(bundle => bundle.order === undefined);
+
+      if (bundlesNeedingOrder.length > 0) {
+        console.log(`Initializing order field for ${bundlesNeedingOrder.length} bundles`);
+
+        try {
+          // Set order numbers 1, 2, 3, etc. for all bundles based on current name order
+          const sortedBundles = [...bundles].sort((a, b) => a.name.localeCompare(b.name));
+          const updatePromises = sortedBundles.map((bundle, index) => {
+            return updateBundle(bundle.id, { order: index + 1 }); // Start from 1, not 0
+          });
+
+          await Promise.all(updatePromises);
+          console.log('Order fields initialized successfully with numbers 1, 2, 3...');
+          showSuccess('Bundle order initialized successfully');
+        } catch (error) {
+          console.error('Error initializing order fields:', error);
+          showError('Error initializing bundle order');
+        }
+      }
+    }
+  };
+
+  // Initialize order when bundles are loaded
+  useEffect(() => {
+    if (bundles && bundles.length > 0) {
+      initializeBundleOrder();
+    }
+  }, [bundles]);
+
+
   const handleSubmit = async () => {
     if (!formData.name.trim()) {
       showError('Bundle name is required');
@@ -254,7 +440,8 @@ const BundlesPage = () => {
         });
         showSuccess('Bundle updated successfully');
       } else {
-        // Add new bundle
+        // Add new bundle with order field (set to end of list + 1)
+        const newOrder = bundles.length + 1;
         await addBundle({
           name: formData.name.trim(),
           description: formData.description.trim(),
@@ -263,6 +450,7 @@ const BundlesPage = () => {
           selectedServices: formData.selectedServices,
           prices: formData.prices,
           categoryStatus: formData.categoryStatus,
+          order: newOrder,
         });
         showSuccess('Bundle added successfully');
       }
@@ -364,19 +552,34 @@ const BundlesPage = () => {
         <Typography variant="h4" sx={{ fontWeight: 600, color: theme.palette.primary.main }}>
           Bundles Management
         </Typography>
-        <Button
-          variant="contained"
-          startIcon={<AddIcon />}
-          onClick={() => handleOpenDialog()}
-          sx={{
-            borderRadius: 2,
-            textTransform: 'none',
-            fontWeight: 600,
-            px: 3,
-          }}
-        >
-          Add Bundle
-        </Button>
+        <Box sx={{ display: 'flex', gap: 2 }}>
+          <Button
+            variant="outlined"
+            startIcon={<RefreshIcon />}
+            onClick={() => window.location.reload()}
+            sx={{
+              borderRadius: 2,
+              textTransform: 'none',
+              fontWeight: 600,
+              px: 3,
+            }}
+          >
+            Refresh
+          </Button>
+          <Button
+            variant="contained"
+            startIcon={<AddIcon />}
+            onClick={() => handleOpenDialog()}
+            sx={{
+              borderRadius: 2,
+              textTransform: 'none',
+              fontWeight: 600,
+              px: 3,
+            }}
+          >
+            Add Bundle
+          </Button>
+        </Box>
       </Box>
 
       {/* Bundles Table */}
@@ -396,11 +599,71 @@ const BundlesPage = () => {
                 </TableRow>
               </TableHead>
               <TableBody>
-                {bundles.map((bundle) => (
+                {bundles && bundles.length > 0 ? (
+                  bundles
+                    .sort((a, b) => {
+                      // Sort by order first, then by name as fallback
+                      const orderA = a.order || 0; // Put items without order at the beginning
+                      const orderB = b.order || 0;
+                      
+                      if (orderA !== orderB) {
+                        return orderA - orderB;
+                      }
+                      
+                      // If order is the same, sort by name
+                      return a.name.localeCompare(b.name);
+                    })
+                    .map((bundle) => (
                   <React.Fragment key={bundle.id}>
-                    <TableRow hover>
+                    <TableRow 
+                      hover
+                      draggable
+                      onDragStart={(e) => handleDragStart(e, bundle)}
+                      onDragOver={(e) => handleDragOver(e, bundle)}
+                      onDragLeave={handleDragLeave}
+                      onDrop={(e) => handleDrop(e, bundle)}
+                      onDragEnd={handleDragEnd}
+                      sx={{
+                        opacity: draggedBundle?.id === bundle.id ? 0.5 : 1,
+                        backgroundColor: draggedOver?.id === bundle.id ? theme.palette.warning.light : 'inherit',
+                        border: draggedOver?.id === bundle.id ? `2px solid ${theme.palette.warning.main}` : 'none',
+                        cursor: 'grab',
+                        '&:active': { cursor: 'grabbing' }
+                      }}
+                    >
                       <TableCell>
                         <Box sx={{ display: 'flex', alignItems: 'center', gap: 1 }}>
+                          {/* Drag Handle */}
+                          <Box
+                            sx={{
+                              cursor: 'grab',
+                              color: theme.palette.primary.main,
+                              backgroundColor: theme.palette.primary.light,
+                              border: `2px solid ${theme.palette.primary.main}`,
+                              borderRadius: 1,
+                              width: 24,
+                              height: 24,
+                              display: 'flex',
+                              alignItems: 'center',
+                              justifyContent: 'center',
+                              fontSize: '10px',
+                              fontWeight: 'bold',
+                              '&:active': {
+                                cursor: 'grabbing',
+                                backgroundColor: theme.palette.primary.main,
+                                color: 'white'
+                              },
+                              '&:hover': {
+                                backgroundColor: theme.palette.primary.main,
+                                color: 'white',
+                                transform: 'scale(1.1)'
+                              }
+                            }}
+                            onMouseDown={(e) => e.stopPropagation()}
+                            onClick={(e) => e.stopPropagation()}
+                          >
+                            ⋮⋮
+                          </Box>
                           <BundleIcon sx={{ color: theme.palette.primary.main }} />
                           <Typography variant="body1" sx={{ fontWeight: 500 }}>
                             {bundle.name}
@@ -566,7 +829,32 @@ const BundlesPage = () => {
                       </TableCell>
                     </TableRow>
                   </React.Fragment>
-                ))}
+                ))
+                ) : (
+                  <TableRow>
+                    <TableCell colSpan={7} sx={{ textAlign: 'center', py: 4 }}>
+                      <Box sx={{ display: 'flex', flexDirection: 'column', alignItems: 'center', gap: 2 }}>
+                        <BundleIcon sx={{ fontSize: 48, color: 'text.secondary' }} />
+                        <Typography variant="h6" color="text.secondary">
+                          No bundles found
+                        </Typography>
+                        <Typography variant="body2" color="text.secondary">
+                          {bundlesLoading ? 'Loading bundles...' : 'Create your first bundle to get started'}
+                        </Typography>
+                        {!bundlesLoading && (
+                          <Button
+                            variant="contained"
+                            startIcon={<AddIcon />}
+                            onClick={() => handleOpenDialog()}
+                            sx={{ mt: 1 }}
+                          >
+                            Add Bundle
+                          </Button>
+                        )}
+                      </Box>
+                    </TableCell>
+                  </TableRow>
+                )}
               </TableBody>
             </Table>
           </TableContainer>

@@ -41,6 +41,13 @@ import {
   Description as DescriptionIcon,
   LocalShipping as ShippingIcon,
   TrendingUp as TrendingUpIcon,
+  DirectionsCar as DirectionsCarIcon,
+  AttachMoney as AttachMoneyIcon,
+  Palette as PaletteIcon,
+  Storage as StorageIcon,
+  AccountBalance as AccountBalanceIcon,
+  PersonAdd as PersonAddIcon,
+  AccountBalanceWallet as AccountBalanceWalletIcon,
 } from '@mui/icons-material';
 import { useNotification } from '../components/Common/NotificationSystem';
 import useFirebase from '../hooks/useFirebase';
@@ -208,6 +215,147 @@ const EmployeeDashboard = () => {
         icon: <AssessmentIcon />,
         color: theme.palette.warning.main,
         route: '/reports'
+      },
+      // Additional permissions to match sidebar
+      'vehicleCategories': {
+        title: 'Vehicle Categories',
+        description: 'Manage vehicle categories',
+        icon: <DirectionsCarIcon />,
+        color: theme.palette.primary.main,
+        route: '/vehicle-categories'
+      },
+      'paymentMethods': {
+        title: 'Payment Methods',
+        description: 'Manage payment methods',
+        icon: <PaymentIcon />,
+        color: theme.palette.success.main,
+        route: '/payment-methods'
+      },
+      'taxManagement': {
+        title: 'Tax Management',
+        description: 'Manage tax settings',
+        icon: <AttachMoneyIcon />,
+        color: theme.palette.warning.main,
+        route: '/taxes'
+      },
+      'customerFields': {
+        title: 'Customer Fields',
+        description: 'Manage customer fields',
+        icon: <SettingsIcon />,
+        color: theme.palette.primary.main,
+        route: '/customer-fields'
+      },
+      'vehicleFields': {
+        title: 'Vehicle Fields',
+        description: 'Manage vehicle fields',
+        icon: <DirectionsCarIcon />,
+        color: theme.palette.primary.main,
+        route: '/vehicle-fields'
+      },
+      'workOrderStatuses': {
+        title: 'Work Order Statuses',
+        description: 'Manage work order statuses',
+        icon: <PaletteIcon />,
+        color: theme.palette.secondary.main,
+        route: '/work-order-statuses'
+      },
+      'dataManagement': {
+        title: 'Data Management',
+        description: 'Manage system data',
+        icon: <StorageIcon />,
+        color: theme.palette.info.main,
+        route: '/data-management'
+      },
+      'bankAccounts': {
+        title: 'Bank Accounts',
+        description: 'Manage bank accounts',
+        icon: <AccountBalanceIcon />,
+        color: theme.palette.primary.main,
+        route: '/bank-accounts'
+      },
+      'expenseCategories': {
+        title: 'Expense Categories',
+        description: 'Manage expense categories',
+        icon: <CategoryIcon />,
+        color: theme.palette.secondary.main,
+        route: '/expense-categories'
+      },
+      'corporateCustomers': {
+        title: 'Corporate Customers',
+        description: 'Manage corporate customers',
+        icon: <BusinessIcon />,
+        color: theme.palette.warning.main,
+        route: '/corporate-customers'
+      },
+      'individualCustomers': {
+        title: 'Individual Customers',
+        description: 'Manage individual customers',
+        icon: <PeopleIcon />,
+        color: theme.palette.warning.main,
+        route: '/individual-customers'
+      },
+      'createCustomer': {
+        title: 'Create Customer',
+        description: 'Create new customers',
+        icon: <PersonAddIcon />,
+        color: theme.palette.warning.main,
+        route: '/create-customer'
+      },
+      'expenses': {
+        title: 'Expenses',
+        description: 'Manage expenses',
+        icon: <ReceiptIcon />,
+        color: theme.palette.error.main,
+        route: '/expenses'
+      },
+      'paymentReports': {
+        title: 'Payment Reports',
+        description: 'View payment reports and analytics',
+        icon: <AssessmentIcon />,
+        color: theme.palette.info.main,
+        route: '/payment-reports'
+      },
+      'vault': {
+        title: 'Vault',
+        description: 'Manage vault operations',
+        icon: <AccountBalanceWalletIcon />,
+        color: theme.palette.success.main,
+        route: '/vault'
+      },
+      'corporateSettlement': {
+        title: 'Corporate Settlement',
+        description: 'Manage corporate settlements',
+        icon: <BusinessIcon />,
+        color: theme.palette.info.main,
+        route: '/corporate-settlement'
+      },
+      'pendingPayments': {
+        title: 'Pending Payments',
+        description: 'Manage pending payments',
+        icon: <AccountBalanceIcon />,
+        color: theme.palette.warning.main,
+        route: '/pending-payments'
+      },
+      'issuedInvoices': {
+        title: 'Issued Invoices',
+        description: 'Manage issued invoices',
+        icon: <ReceiptIcon />,
+        color: theme.palette.error.main,
+        route: '/issued-invoices'
+      },
+      'invoiceReports': {
+        title: 'Invoice Reports',
+        description: 'View invoice reports and analytics',
+        icon: <AssessmentIcon />,
+        color: theme.palette.info.main,
+        route: '/invoice-reports'
+      },
+      'pricingManagement': {
+        title: 'Pricing Management',
+        description: 'Manage pricing for services and bundles',
+        icon: <AttachMoneyIcon />,
+        color: theme.palette.success.main,
+        route: '/pricing-management'
       }
     };
 

@@ -39,6 +39,7 @@ import EmployeeChangePasswordPage from './pages/EmployeeChangePasswordPage';
 import EmployeeDashboard from './pages/EmployeeDashboard';
 import LoginPage from './pages/LoginPage';
 import DataManagementPage from './pages/DataManagement/DataManagementPage';
+import PricingManagementPage from './pages/PricingManagement/PricingManagementPage';
 import { auth } from './firebase/config';
 import { onAuthStateChanged } from 'firebase/auth';
 
@@ -159,6 +160,7 @@ function AppRouter() {
           <Route path="/payment-reports" element={<PaymentReportsPage />} />
           <Route path="/corporate-settlement" element={<CorporateSettlementPage />} />
           <Route path="/data-management" element={<DataManagementPage />} />
+          <Route path="/pricing-management" element={<PricingManagementPage />} />
           <Route path="/employee/*" element={<EmployeeDashboard />} />
         </Routes>
       </EmployeeLayout>
@@ -202,6 +204,7 @@ function AppRouter() {
         <Route path="/payment-reports" element={<PaymentReportsPage />} />
         <Route path="/corporate-settlement" element={<CorporateSettlementPage />} />
         <Route path="/data-management" element={<DataManagementPage />} />
+        <Route path="/pricing-management" element={<PricingManagementPage />} />
       </Routes>
     </MainLayout>
   );

@@ -83,7 +83,7 @@ const useFirebase = (collectionName) => {
       const result = querySnapshot.docs.map((doc, index) => ({
         id: doc.id,
         ...doc.data(),
-        order: doc.data().order || index,
+        order: doc.data().order || 0, // Default to 0 for items without order
       }));
 
       // Cache the result
@@ -131,15 +131,25 @@ const useFirebase = (collectionName) => {
           const result = querySnapshot.docs.map((doc, index) => ({
             id: doc.id,
             ...doc.data(),
-            order: doc.data().order || index,
+            order: doc.data().order || 0, // Default to 0 for items without order
           }));
           
           setData(result);
           setLoading(false);
+          setError(null); // Clear any previous errors
+          console.log(`Successfully loaded ${result.length} ${collectionName} records`);
         },
         (err) => {
           console.error(`Error listening to ${collectionName}:`, err);
-          setError(err.message);
+          
+          // Check if it's a network error
+          if (err.code === 'unavailable' || err.message.includes('network') || err.message.includes('disconnected')) {
+            setError('Network connection issue. Please check your internet connection and try again.');
+            console.warn('Network error detected, will retry automatically');
+          } else {
+            setError(err.message);
+          }
+          
           setLoading(false);
         }
       );

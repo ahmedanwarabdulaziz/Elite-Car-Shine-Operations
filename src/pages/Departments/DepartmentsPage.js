@@ -75,23 +75,46 @@ const DepartmentsPage = () => {
     color: '#1976d2',
     isActive: true,
     permissions: {
+      // Main navigation
       dashboard: true,
-      categories: false,
-      services: false,
-      customers: false,
       workOrders: false,
       workOrderDashboard: false,
-      invoices: false,
+      
+      // Settings group
+      categories: false,
+      vehicleCategories: false,
+      services: false,
+      bundles: false,
+      paymentMethods: false,
+      taxManagement: false,
+      customerFields: false,
+      vehicleFields: false,
       employees: false,
-      reports: false,
-      // New payment management permissions
-      pendingPayments: false,
-      corporateSettlement: false,
-      vault: false,
+      departments: false,
+      workOrderStatuses: false,
+      dataManagement: false,
       bankAccounts: false,
-      paymentReports: false,
       expenseCategories: false,
+      pricingManagement: false,
+      
+      // Customers group
+      corporateCustomers: false,
+      individualCustomers: false,
+      createCustomer: false,
+      
+      // Finance group
       expenses: false,
+      paymentReports: false,
+      vault: false,
+      corporateSettlement: false,
+      pendingPayments: false,
+      issuedInvoices: false,
+      invoices: false,
+      invoiceReports: false,
+      finance: false,
+      
+      // Analytics
+      analytics: false,
     },
     canPerformDetailing: false,
     detailingCapabilities: []
@@ -112,22 +135,45 @@ const DepartmentsPage = () => {
         color: department.color || '#1976d2',
         isActive: department.isActive !== undefined ? department.isActive : true,
         permissions: department.permissions || {
+          // Main navigation
           dashboard: true,
-          categories: false,
-          services: false,
-          customers: false,
           workOrders: false,
-          invoices: false,
+          workOrderDashboard: false,
+          
+          // Settings group
+          categories: false,
+          vehicleCategories: false,
+          services: false,
+          bundles: false,
+          paymentMethods: false,
+          taxManagement: false,
+          customerFields: false,
+          vehicleFields: false,
           employees: false,
-          reports: false,
-          // New payment management permissions
-          pendingPayments: false,
-          corporateSettlement: false,
-          vault: false,
+          departments: false,
+          workOrderStatuses: false,
+          dataManagement: false,
           bankAccounts: false,
-          paymentReports: false,
           expenseCategories: false,
+          
+          // Customers group
+          corporateCustomers: false,
+          individualCustomers: false,
+          createCustomer: false,
+          
+          // Finance group
           expenses: false,
+          paymentReports: false,
+          vault: false,
+          corporateSettlement: false,
+          pendingPayments: false,
+          issuedInvoices: false,
+          invoices: false,
+          invoiceReports: false,
+          finance: false,
+          
+          // Analytics
+          analytics: false,
         },
         canPerformDetailing: department.canPerformDetailing || false,
         detailingCapabilities: department.detailingCapabilities || []
@@ -284,23 +330,46 @@ const DepartmentsPage = () => {
   };
 
   const permissionLabels = {
+    // Main navigation
     dashboard: 'Dashboard Access',
-    categories: 'Categories Management',
-    services: 'Services Management',
-    customers: 'Customer Management',
     workOrders: 'Work Orders Management',
     workOrderDashboard: 'Work Order Dashboard',
-    invoices: 'Invoice Management',
+    
+    // Settings group
+    categories: 'Categories Management',
+    vehicleCategories: 'Vehicle Categories Management',
+    services: 'Services Management',
+    bundles: 'Service Bundles Management',
+    paymentMethods: 'Payment Methods Management',
+    taxManagement: 'Tax Management',
+    customerFields: 'Customer Fields Management',
+    vehicleFields: 'Vehicle Fields Management',
     employees: 'Employee Management',
-    reports: 'Reports & Analytics',
-    // New payment management permissions
-    pendingPayments: 'Pending Payments Management',
-    corporateSettlement: 'Corporate Settlement Management',
-    vault: 'Vault Management',
+    departments: 'Department Management',
+    workOrderStatuses: 'Work Order Statuses Management',
+    dataManagement: 'Data Management',
     bankAccounts: 'Bank Accounts Management',
-    paymentReports: 'Payment Reports & Analytics',
     expenseCategories: 'Expense Categories Management',
+    pricingManagement: 'Pricing Management',
+    
+    // Customers group
+    corporateCustomers: 'Corporate Customers Management',
+    individualCustomers: 'Individual Customers Management',
+    createCustomer: 'Create Customer Access',
+    
+    // Finance group
     expenses: 'Expenses Management',
+    paymentReports: 'Payment Reports & Analytics',
+    vault: 'Vault Management',
+    corporateSettlement: 'Corporate Settlement Management',
+    pendingPayments: 'Pending Payments Management',
+    issuedInvoices: 'Issued Invoices Management',
+    invoices: 'Invoices Management',
+    invoiceReports: 'Invoice Reports & Analytics',
+    finance: 'Finance Management',
+    
+    // Analytics
+    analytics: 'Analytics & Reports',
   };
 
   // Use existing services and bundles instead of hardcoded capabilities

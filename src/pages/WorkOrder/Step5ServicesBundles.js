@@ -49,6 +49,23 @@ const Step5ServicesBundles = ({
   const [serviceNotes, setServiceNotes] = useState({});
   const [bundleNotes, setBundleNotes] = useState({});
   const [taxes, setTaxes] = useState([]);
+  const [categories, setCategories] = useState([]);
+
+  // Load categories first
+  useEffect(() => {
+    const unsubscribe = onSnapshot(
+      query(collection(db, 'categories'), where('isActive', '==', true)),
+      (snapshot) => {
+        const data = snapshot.docs.map(doc => ({ id: doc.id, ...doc.data() }));
+        setCategories(data);
+      },
+      (error) => {
+        console.error('Error loading categories:', error);
+      }
+    );
+    
+    return () => unsubscribe();
+  }, []);
 
   // Load services
   useEffect(() => {
@@ -98,17 +115,90 @@ const Step5ServicesBundles = ({
     return () => unsubscribe();
   }, []);
 
-  // Filter services based on search
-  const filteredServices = services.filter(service =>
-    service.name?.toLowerCase().includes(serviceSearchTerm.toLowerCase()) ||
-    service.description?.toLowerCase().includes(serviceSearchTerm.toLowerCase())
-  );
+  // Get customer's category ID
+  const getCustomerCategoryId = () => {
+    // Priority 1: Use selectedGroup.categoryType (for both corporate and individual)
+    if (selectedGroup?.categoryType) {
+      return selectedGroup.categoryType;
+    }
+    // Priority 2: Use selectedCustomer.group.categoryType
+    else if (selectedCustomer?.group?.categoryType) {
+      return selectedCustomer.group.categoryType;
+    }
+    // Priority 3: Check if selectedCustomer itself has categoryType (for corporate customers)
+    else if (selectedCustomer?.categoryType) {
+      return selectedCustomer.categoryType;
+    }
+    return null;
+  };
 
-  // Filter bundles based on search
-  const filteredBundles = bundles.filter(bundle =>
-    bundle.name?.toLowerCase().includes(bundleSearchTerm.toLowerCase()) ||
-    bundle.description?.toLowerCase().includes(bundleSearchTerm.toLowerCase())
-  );
+  // Check if service is active for customer's category
+  const isServiceActiveForCategory = (service, categoryId) => {
+    if (!categoryId || !service.categoryStatus) {
+      return false; // Hide if no category or no categoryStatus
+    }
+    return service.categoryStatus[categoryId] !== false; // Default to true if not set
+  };
+
+  // Check if bundle is active for customer's category
+  const isBundleActiveForCategory = (bundle, categoryId) => {
+    if (!categoryId || !bundle.categoryStatus) {
+      return false; // Hide if no category or no categoryStatus
+    }
+    return bundle.categoryStatus[categoryId] !== false; // Default to true if not set
+  };
+
+  // Filter services based on customer's category and search
+  const filteredServices = services.filter(service => {
+    const customerCategoryId = getCustomerCategoryId();
+    
+    // Debug logging
+    console.log('🔍 SERVICE FILTERING DEBUG:');
+    console.log('  - Service:', service.name);
+    console.log('  - Customer Category ID:', customerCategoryId);
+    console.log('  - Service categoryStatus:', service.categoryStatus);
+    console.log('  - Is active for category:', isServiceActiveForCategory(service, customerCategoryId));
+    
+    // First filter by category
+    if (!isServiceActiveForCategory(service, customerCategoryId)) {
+      console.log('  ❌ Service filtered out due to category');
+      return false;
+    }
+    
+    // Then filter by search term
+    const matchesSearch = service.name?.toLowerCase().includes(serviceSearchTerm.toLowerCase()) ||
+           service.description?.toLowerCase().includes(serviceSearchTerm.toLowerCase());
+    
+    console.log('  - Matches search:', matchesSearch);
+    console.log('  ✅ Service included');
+    return matchesSearch;
+  });
+
+  // Filter bundles based on customer's category and search
+  const filteredBundles = bundles.filter(bundle => {
+    const customerCategoryId = getCustomerCategoryId();
+    
+    // Debug logging
+    console.log('🔍 BUNDLE FILTERING DEBUG:');
+    console.log('  - Bundle:', bundle.name);
+    console.log('  - Customer Category ID:', customerCategoryId);
+    console.log('  - Bundle categoryStatus:', bundle.categoryStatus);
+    console.log('  - Is active for category:', isBundleActiveForCategory(bundle, customerCategoryId));
+    
+    // First filter by category
+    if (!isBundleActiveForCategory(bundle, customerCategoryId)) {
+      console.log('  ❌ Bundle filtered out due to category');
+      return false;
+    }
+    
+    // Then filter by search term
+    const matchesSearch = bundle.name?.toLowerCase().includes(bundleSearchTerm.toLowerCase()) ||
+           bundle.description?.toLowerCase().includes(bundleSearchTerm.toLowerCase());
+    
+    console.log('  - Matches search:', matchesSearch);
+    console.log('  ✅ Bundle included');
+    return matchesSearch;
+  });
 
   const handleServiceToggle = (service) => {
     setSelectedServices(prev => {
@@ -703,7 +793,14 @@ const Step5ServicesBundles = ({
               />
 
               <Box sx={{ maxHeight: 400, overflowY: 'auto' }}>
-                {filteredServices.map(service => {
+                {filteredServices.length === 0 && services.length > 0 ? (
+                  <Box sx={{ p: 2, textAlign: 'center' }}>
+                    <Typography variant="body2" color="text.secondary">
+                      No services available for the selected customer category.
+                    </Typography>
+                  </Box>
+                ) : (
+                  filteredServices.map(service => {
                   const isSelected = selectedServices.find(s => s.id === service.id);
                   const price = getServicePrice(service);
                   const tax = calculateItemTax(service);
@@ -750,7 +847,8 @@ const Step5ServicesBundles = ({
                       </CardContent>
                     </Card>
                   );
-                })}
+                })
+                )}
               </Box>
             </CardContent>
           </Card>
@@ -782,7 +880,14 @@ const Step5ServicesBundles = ({
               />
 
               <Box sx={{ maxHeight: 400, overflowY: 'auto' }}>
-                {filteredBundles.map(bundle => {
+                {filteredBundles.length === 0 && bundles.length > 0 ? (
+                  <Box sx={{ p: 2, textAlign: 'center' }}>
+                    <Typography variant="body2" color="text.secondary">
+                      No bundles available for the selected customer category.
+                    </Typography>
+                  </Box>
+                ) : (
+                  filteredBundles.map(bundle => {
                   const isSelected = selectedBundles.find(b => b.id === bundle.id);
                   const price = getBundlePrice(bundle);
                   const tax = calculateItemTax(bundle);
@@ -829,7 +934,8 @@ const Step5ServicesBundles = ({
                       </CardContent>
                     </Card>
                   );
-                })}
+                })
+                )}
               </Box>
             </CardContent>
           </Card>

@@ -331,30 +331,33 @@ const WorkOrderPage = () => {
   }
 
   return (
-    <Container maxWidth="md" sx={{ py: 4 }}>
-      <Paper sx={{ p: 3, mb: 3 }}>
-        <Stepper activeStep={activeStep} alternativeLabel>
+    <Container maxWidth="md" sx={{ py: 1, height: '100vh', display: 'flex', flexDirection: 'column' }}>
+      <Paper sx={{ p: 1, mb: 1 }}>
+        <Stepper activeStep={activeStep} alternativeLabel sx={{ '& .MuiStepLabel-root': { fontSize: '0.75rem' } }}>
           {steps.map(label => (
             <Step key={label}>
-              <StepLabel>{label}</StepLabel>
+              <StepLabel sx={{ '& .MuiStepLabel-label': { fontSize: '0.7rem' } }}>{label}</StepLabel>
             </Step>
           ))}
         </Stepper>
       </Paper>
       
-      <Paper>
+      <Paper sx={{ flex: 1, display: 'flex', flexDirection: 'column', overflow: 'hidden' }}>
         {activeStep > 0 && (
-          <Box sx={{ p: 2, borderBottom: 1, borderColor: 'divider' }}>
+          <Box sx={{ p: 1, borderBottom: 1, borderColor: 'divider' }}>
             <Button
               startIcon={<ArrowBackIcon />}
               onClick={handleBack}
               variant="outlined"
+              size="small"
             >
               Back
             </Button>
           </Box>
         )}
-        {stepContent}
+        <Box sx={{ flex: 1, overflow: 'auto' }}>
+          {stepContent}
+        </Box>
       </Paper>
     </Container>
   );

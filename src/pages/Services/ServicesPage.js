@@ -70,6 +70,8 @@ const ServicesPage = () => {
   const [openDialog, setOpenDialog] = useState(false);
   const [editingService, setEditingService] = useState(null);
   const [expandedService, setExpandedService] = useState(null);
+  const [draggedService, setDraggedService] = useState(null);
+  const [draggedOver, setDraggedOver] = useState(null);
   const [formData, setFormData] = useState({
     name: '',
     description: '',
@@ -81,7 +83,7 @@ const ServicesPage = () => {
 
   // Subscribe to real-time data
   useEffect(() => {
-    subscribeToServices({ orderBy: 'name', orderDirection: 'asc' });
+    subscribeToServices({ orderBy: 'order', orderDirection: 'asc' });
     subscribeToCategories({ orderBy: 'order', orderDirection: 'asc' });
     subscribeToVehicleCategories({ orderBy: 'order', orderDirection: 'asc' });
   }, [subscribeToServices, subscribeToCategories, subscribeToVehicleCategories]);
@@ -207,7 +209,8 @@ const ServicesPage = () => {
         });
         showSuccess('Service updated successfully');
       } else {
-        // Add new service
+        // Add new service with order field (set to end of list + 1)
+        const newOrder = services.length + 1;
         await addService({
           name: formData.name.trim(),
           description: formData.description.trim(),
@@ -215,6 +218,7 @@ const ServicesPage = () => {
           isActive: formData.isActive,
           prices: formData.prices,
           categoryStatus: formData.categoryStatus,
+          order: newOrder,
         });
         showSuccess('Service added successfully');
       }
@@ -285,6 +289,114 @@ const ServicesPage = () => {
     return service.categoryStatus?.[categoryId] !== false; // Default to true if not set
   };
 
+  // Drag and Drop Handlers
+  const handleDragStart = (e, service) => {
+    e.stopPropagation();
+    console.log('Drag started for service:', service.name);
+    setDraggedService(service);
+    e.dataTransfer.effectAllowed = 'move';
+    e.dataTransfer.setData('text/plain', service.id);
+  };
+
+  const handleDragOver = (e, service) => {
+    e.preventDefault();
+    e.stopPropagation();
+    e.dataTransfer.dropEffect = 'move';
+    console.log('Dragging over service:', service.name);
+    setDraggedOver(service);
+  };
+
+  const handleDragLeave = (e) => {
+    e.preventDefault();
+    e.stopPropagation();
+    setDraggedOver(null);
+  };
+
+  const handleDrop = async (e, targetService) => {
+    e.preventDefault();
+    e.stopPropagation();
+    
+    if (draggedService && draggedService.id !== targetService.id) {
+      console.log(`Reordering service: ${draggedService.name} to position of ${targetService.name}`);
+      
+      try {
+        // Get current services array
+        const currentServices = [...services];
+        
+        // Find indices of dragged and target services
+        const draggedIndex = currentServices.findIndex(s => s.id === draggedService.id);
+        const targetIndex = currentServices.findIndex(s => s.id === targetService.id);
+        
+        if (draggedIndex === -1 || targetIndex === -1) {
+          showError('Error: Could not find services to reorder');
+          return;
+        }
+        
+        // Remove dragged service from its current position
+        const [draggedItem] = currentServices.splice(draggedIndex, 1);
+        
+        // Insert it at the target position
+        currentServices.splice(targetIndex, 0, draggedItem);
+        
+        // Update order field for all services with proper numbering (1, 2, 3, etc.)
+        const updatePromises = currentServices.map(async (service, index) => {
+          return updateService(service.id, { order: index + 1 }); // Start from 1, not 0
+        });
+        
+        await Promise.all(updatePromises);
+        
+        showSuccess(`Moved ${draggedService.name} to position of ${targetService.name}`);
+        console.log('Services reordered successfully');
+        
+      } catch (error) {
+        console.error('Error reordering services:', error);
+        showError(`Error reordering services: ${error.message}`);
+      }
+    }
+    
+    setDraggedService(null);
+    setDraggedOver(null);
+  };
+
+  const handleDragEnd = () => {
+    setDraggedService(null);
+    setDraggedOver(null);
+  };
+
+  // Initialize order field for existing services that don't have one
+  const initializeServiceOrder = async () => {
+    if (services && services.length > 0) {
+      // Check if any services need order initialization
+      const servicesNeedingOrder = services.filter(service => service.order === undefined);
+      
+      if (servicesNeedingOrder.length > 0) {
+        console.log(`Initializing order field for ${servicesNeedingOrder.length} services`);
+        
+        try {
+          // Set order numbers 1, 2, 3, etc. for all services based on current name order
+          const sortedServices = [...services].sort((a, b) => a.name.localeCompare(b.name));
+          const updatePromises = sortedServices.map((service, index) => {
+            return updateService(service.id, { order: index + 1 }); // Start from 1, not 0
+          });
+          
+          await Promise.all(updatePromises);
+          console.log('Order fields initialized successfully with numbers 1, 2, 3...');
+          showSuccess('Service order initialized successfully');
+        } catch (error) {
+          console.error('Error initializing order fields:', error);
+          showError('Error initializing service order');
+        }
+      }
+    }
+  };
+
+  // Initialize order when services are loaded
+  useEffect(() => {
+    if (services && services.length > 0) {
+      initializeServiceOrder();
+    }
+  }, [services]);
+
   if (servicesLoading || categoriesLoading || vehicleCategoriesLoading) {
     return (
       <Box sx={{ display: 'flex', justifyContent: 'center', alignItems: 'center', height: '50vh' }}>
@@ -331,11 +443,70 @@ const ServicesPage = () => {
                 </TableRow>
               </TableHead>
               <TableBody>
-                {services.map((service) => (
+                {services
+                  .sort((a, b) => {
+                    // Sort by order first, then by name as fallback
+                    const orderA = a.order || 0; // Put items without order at the beginning
+                    const orderB = b.order || 0;
+                    
+                    if (orderA !== orderB) {
+                      return orderA - orderB;
+                    }
+                    
+                    // If order is the same, sort by name
+                    return a.name.localeCompare(b.name);
+                  })
+                  .map((service) => (
                   <React.Fragment key={service.id}>
-                    <TableRow hover>
+                    <TableRow 
+                      hover
+                      draggable
+                      onDragStart={(e) => handleDragStart(e, service)}
+                      onDragOver={(e) => handleDragOver(e, service)}
+                      onDragLeave={handleDragLeave}
+                      onDrop={(e) => handleDrop(e, service)}
+                      onDragEnd={handleDragEnd}
+                      sx={{
+                        opacity: draggedService?.id === service.id ? 0.5 : 1,
+                        backgroundColor: draggedOver?.id === service.id ? theme.palette.warning.light : 'inherit',
+                        border: draggedOver?.id === service.id ? `2px solid ${theme.palette.warning.main}` : 'none',
+                        cursor: 'grab',
+                        '&:active': { cursor: 'grabbing' }
+                      }}
+                    >
                       <TableCell>
                         <Box sx={{ display: 'flex', alignItems: 'center', gap: 1 }}>
+                          {/* Drag Handle */}
+                          <Box
+                            sx={{
+                              cursor: 'grab',
+                              color: theme.palette.primary.main,
+                              backgroundColor: theme.palette.primary.light,
+                              border: `2px solid ${theme.palette.primary.main}`,
+                              borderRadius: 1,
+                              width: 24,
+                              height: 24,
+                              display: 'flex',
+                              alignItems: 'center',
+                              justifyContent: 'center',
+                              fontSize: '10px',
+                              fontWeight: 'bold',
+                              '&:active': { 
+                                cursor: 'grabbing',
+                                backgroundColor: theme.palette.primary.main,
+                                color: 'white'
+                              },
+                              '&:hover': { 
+                                backgroundColor: theme.palette.primary.main,
+                                color: 'white',
+                                transform: 'scale(1.1)'
+                              }
+                            }}
+                            onMouseDown={(e) => e.stopPropagation()}
+                            onClick={(e) => e.stopPropagation()}
+                          >
+                            ⋮⋮
+                          </Box>
                           <ServiceIcon sx={{ color: theme.palette.primary.main }} />
                           <Typography variant="body1" sx={{ fontWeight: 500 }}>
                             {service.name}
