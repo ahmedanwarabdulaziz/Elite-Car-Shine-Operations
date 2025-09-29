@@ -12,7 +12,6 @@ import {
   useTheme,
   useMediaQuery,
   Collapse,
-  Button,
   Tooltip,
 } from '@mui/material';
 import {
@@ -46,157 +45,103 @@ import {
   ExpandMore as ExpandMoreIcon,
   Group as GroupIcon,
   AccountBalance as FinanceGroupIcon,
-  GetApp as InstallIcon,
-  History as AuditIcon,
 } from '@mui/icons-material';
 import { useNavigate, useLocation } from 'react-router-dom';
 
 const drawerWidth = 280;
 
-const menuItems = [
-  { text: 'Dashboard', icon: <DashboardIcon />, path: '/' },
-  { text: 'Work Orders', icon: <WorkOrderIcon />, path: '/work-orders' },
-  { text: 'Work Orders Dashboard', icon: <DashboardViewIcon />, path: '/work-orders-dashboard' },
-  { 
-    text: 'Settings', 
-    icon: <SettingsIcon />, 
-    children: [
-      { text: 'Categories', icon: <CategoryIcon />, path: '/categories' },
-      { text: 'Vehicle Categories', icon: <VehicleIcon />, path: '/vehicle-categories' },
-      { text: 'Services', icon: <ServiceIcon />, path: '/services' },
-      { text: 'Bundles', icon: <BundleIcon />, path: '/bundles' },
-      { text: 'Payment Methods', icon: <PaymentIcon />, path: '/payment-methods' },
-      { text: 'Tax Management', icon: <TaxIcon />, path: '/taxes' },
-      { text: 'Customer Fields', icon: <SettingsIcon />, path: '/customer-fields' },
-      { text: 'Vehicle Fields', icon: <VehicleIcon />, path: '/vehicle-fields' },
-      { text: 'Employees', icon: <EmployeeIcon />, path: '/employees' },
-      { text: 'Departments', icon: <BusinessIcon />, path: '/departments' },
-      { text: 'Work Order Statuses', icon: <PaletteIcon />, path: '/work-order-statuses' },
-      { text: 'Data Management', icon: <StorageIcon />, path: '/data-management' },
-      { text: 'Bank Accounts', icon: <BankAccountsIcon />, path: '/bank-accounts' },
-      { text: 'Expense Categories', icon: <ExpenseCategoriesIcon />, path: '/expense-categories' },
-      { text: 'Pricing Management', icon: <FinanceGroupIcon />, path: '/pricing-management' },
-    ]
-  },
-  { 
-    text: 'Customers', 
-    icon: <GroupIcon />, 
-    children: [
-      { text: 'Corporate Customers', icon: <BusinessIcon />, path: '/corporate-customers' },
-      { text: 'Individual Customer Groups', icon: <PersonIcon />, path: '/individual-customers' },
-      { text: 'Create Customer', icon: <PersonAddIcon />, path: '/create-customer' },
-    ]
-  },
-  { 
-    text: 'Finance', 
-    icon: <FinanceGroupIcon />, 
-    children: [
-      { text: 'Expenses', icon: <ExpensesIcon />, path: '/expenses' },
-      { text: 'Payment Reports', icon: <PaymentReportsIcon />, path: '/payment-reports' },
-      { text: 'Vault', icon: <VaultIcon />, path: '/vault' },
-      { text: 'Corporate Settlement', icon: <BusinessIcon />, path: '/corporate-settlement' },
-      { text: 'Pending Payments', icon: <PendingPaymentsIcon />, path: '/pending-payments' },
-      { text: 'Issued Invoices', icon: <InvoiceIcon />, path: '/issued-invoices' },
-      { text: 'Invoices', icon: <InvoiceIcon />, path: '/invoices' },
-      { text: 'Invoice Reports', icon: <AnalyticsIcon />, path: '/invoice-reports' },
-      { text: 'Finance', icon: <FinanceIcon />, path: '/finance' },
-    ]
-  },
-  { text: 'Analytics', icon: <AnalyticsIcon />, path: '/analytics' },
-  { text: 'Audit Trail', icon: <AuditIcon />, path: '/audit' },
-];
-
-const Sidebar = ({ open, onToggle }) => {
+const EmployeeSidebar = ({ open, onToggle, employeePermissions }) => {
   const theme = useTheme();
   const isMobile = useMediaQuery(theme.breakpoints.down('md'));
   const navigate = useNavigate();
   const location = useLocation();
   const [expandedItems, setExpandedItems] = useState({});
-  const [deferredPrompt, setDeferredPrompt] = useState(null);
-  const [isInstalled, setIsInstalled] = useState(false);
-  const [buttonClicked, setButtonClicked] = useState(false);
 
-  // PWA Install functionality
-  useEffect(() => {
-    // Check if app is already installed
-    if (window.matchMedia('(display-mode: standalone)').matches) {
-      setIsInstalled(true);
-    }
+  // Filter menu items based on employee permissions
+  const getFilteredMenuItems = () => {
+    const allMenuItems = [
+      { text: 'Dashboard', icon: <DashboardIcon />, path: '/employee/dashboard', permission: 'dashboard' },
+      { text: 'Work Orders', icon: <WorkOrderIcon />, path: '/work-orders', permission: 'workOrders' },
+      { text: 'Work Orders Dashboard', icon: <DashboardViewIcon />, path: '/work-orders-dashboard', permission: 'workOrderDashboard' },
+      { 
+        text: 'Settings', 
+        icon: <SettingsIcon />, 
+        permission: 'settings',
+        children: [
+          { text: 'Categories', icon: <CategoryIcon />, path: '/categories', permission: 'categories' },
+          { text: 'Vehicle Categories', icon: <VehicleIcon />, path: '/vehicle-categories', permission: 'vehicleCategories' },
+          { text: 'Services', icon: <ServiceIcon />, path: '/services', permission: 'services' },
+          { text: 'Bundles', icon: <BundleIcon />, path: '/bundles', permission: 'bundles' },
+          { text: 'Payment Methods', icon: <PaymentIcon />, path: '/payment-methods', permission: 'paymentMethods' },
+          { text: 'Tax Management', icon: <TaxIcon />, path: '/taxes', permission: 'taxManagement' },
+          { text: 'Customer Fields', icon: <SettingsIcon />, path: '/customer-fields', permission: 'customerFields' },
+          { text: 'Vehicle Fields', icon: <VehicleIcon />, path: '/vehicle-fields', permission: 'vehicleFields' },
+          { text: 'Employees', icon: <EmployeeIcon />, path: '/employees', permission: 'employees' },
+          { text: 'Departments', icon: <BusinessIcon />, path: '/departments', permission: 'departments' },
+          { text: 'Work Order Statuses', icon: <PaletteIcon />, path: '/work-order-statuses', permission: 'workOrderStatuses' },
+          { text: 'Data Management', icon: <StorageIcon />, path: '/data-management', permission: 'dataManagement' },
+          { text: 'Bank Accounts', icon: <BankAccountsIcon />, path: '/bank-accounts', permission: 'bankAccounts' },
+          { text: 'Expense Categories', icon: <ExpenseCategoriesIcon />, path: '/expense-categories', permission: 'expenseCategories' },
+          { text: 'Pricing Management', icon: <FinanceGroupIcon />, path: '/pricing-management', permission: 'pricingManagement' },
+        ]
+      },
+      { 
+        text: 'Customers', 
+        icon: <GroupIcon />, 
+        permission: 'customers',
+        children: [
+          { text: 'Corporate Customers', icon: <BusinessIcon />, path: '/corporate-customers', permission: 'corporateCustomers' },
+          { text: 'Individual Customer Groups', icon: <PersonIcon />, path: '/individual-customers', permission: 'individualCustomers' },
+          { text: 'Create Customer', icon: <PersonAddIcon />, path: '/create-customer', permission: 'createCustomer' },
+        ]
+      },
+      { 
+        text: 'Finance', 
+        icon: <FinanceGroupIcon />, 
+        permission: 'finance',
+        children: [
+          { text: 'Expenses', icon: <ExpensesIcon />, path: '/expenses', permission: 'expenses' },
+          { text: 'Payment Reports', icon: <PaymentReportsIcon />, path: '/payment-reports', permission: 'paymentReports' },
+          { text: 'Vault', icon: <VaultIcon />, path: '/vault', permission: 'vault' },
+          { text: 'Corporate Settlement', icon: <BusinessIcon />, path: '/corporate-settlement', permission: 'corporateSettlement' },
+          { text: 'Pending Payments', icon: <PendingPaymentsIcon />, path: '/pending-payments', permission: 'pendingPayments' },
+          { text: 'Issued Invoices', icon: <InvoiceIcon />, path: '/issued-invoices', permission: 'issuedInvoices' },
+          { text: 'Invoices', icon: <InvoiceIcon />, path: '/invoices', permission: 'invoices' },
+          { text: 'Invoice Reports', icon: <AnalyticsIcon />, path: '/invoice-reports', permission: 'invoiceReports' },
+          { text: 'Finance', icon: <FinanceIcon />, path: '/finance', permission: 'finance' },
+        ]
+      },
+      { text: 'Analytics', icon: <AnalyticsIcon />, path: '/analytics', permission: 'analytics' },
+    ];
 
-    // Listen for beforeinstallprompt event
-    const handleBeforeInstallPrompt = (e) => {
-      console.log('PWA Install prompt available');
-      e.preventDefault();
-      setDeferredPrompt(e);
-    };
-
-    // Listen for appinstalled event
-    const handleAppInstalled = () => {
-      console.log('PWA App installed');
-      setIsInstalled(true);
-      setDeferredPrompt(null);
-    };
-
-    // Check if we can show install button (for development/testing)
-    const checkInstallability = () => {
-      // For development, show button if not already installed
-      if (!isInstalled && !window.matchMedia('(display-mode: standalone)').matches) {
-        // Simulate install prompt for testing
-        setTimeout(() => {
-          if (!deferredPrompt) {
-            console.log('PWA Install button should be visible');
-            // Create a mock deferred prompt for testing
-            setDeferredPrompt({ 
-              prompt: () => {
-                console.log('Mock install prompt triggered');
-                return Promise.resolve();
-              }
-            });
-          }
-        }, 2000);
-      }
-    };
-
-    window.addEventListener('beforeinstallprompt', handleBeforeInstallPrompt);
-    window.addEventListener('appinstalled', handleAppInstalled);
-    
-    // Check installability after component mounts
-    checkInstallability();
-
-    return () => {
-      window.removeEventListener('beforeinstallprompt', handleBeforeInstallPrompt);
-      window.removeEventListener('appinstalled', handleAppInstalled);
-    };
-  }, [isInstalled, deferredPrompt]);
-
-  const handleInstallClick = async () => {
-    console.log('Install button clicked!');
-    setButtonClicked(true);
-    
-    // Always show the development message for now
-    console.log('Development mode - showing install info');
-    alert('🚀 PWA Install Button Working!\n\nIn production with HTTPS, this would install the Elite Car Shine app on your device.\n\nFor now, you can manually add this page to your home screen.');
-    
-    // Try to trigger real PWA install if available
-    try {
-      if (deferredPrompt && deferredPrompt.prompt && typeof deferredPrompt.prompt === 'function') {
-        console.log('Attempting real PWA install prompt');
-        await deferredPrompt.prompt();
+    // Filter items based on permissions
+    const filterItems = (items) => {
+      return items.filter(item => {
+        // Check if user has permission for this item
+        const hasPermission = !item.permission || employeePermissions?.[item.permission] === true;
         
-        if (deferredPrompt.userChoice) {
-          const result = await deferredPrompt.userChoice;
-          console.log('Install prompt result:', result);
+        if (item.children) {
+          // Filter children and check if any children are accessible
+          const filteredChildren = filterItems(item.children);
+          return hasPermission && filteredChildren.length > 0;
         }
-      }
-    } catch (error) {
-      console.log('PWA install error (this is normal in development):', error);
-    }
-    
-    // Reset button state after 2 seconds
-    setTimeout(() => {
-      setButtonClicked(false);
-    }, 2000);
+        
+        return hasPermission;
+      }).map(item => {
+        if (item.children) {
+          return {
+            ...item,
+            children: filterItems(item.children)
+          };
+        }
+        return item;
+      });
+    };
+
+    return filterItems(allMenuItems);
   };
+
+  const menuItems = getFilteredMenuItems();
 
   const handleNavigation = (path) => {
     navigate(path);
@@ -334,7 +279,7 @@ const Sidebar = ({ open, onToggle }) => {
               Elite Detailing
             </Typography>
             <Typography variant="caption" sx={{ color: theme.palette.text.secondary }}>
-              Business Management
+              Employee Portal
             </Typography>
           </Box>
         </Box>
@@ -352,29 +297,6 @@ const Sidebar = ({ open, onToggle }) => {
 
       {/* Footer */}
       <Box sx={{ p: 2, borderTop: `1px solid ${theme.palette.divider}` }}>
-        {/* Always show install button for testing */}
-        <Tooltip title="Install Elite Car Shine App" placement="top">
-          <Button
-            fullWidth
-            variant="contained"
-            size="small"
-            startIcon={<InstallIcon />}
-            onClick={handleInstallClick}
-            disabled={buttonClicked}
-            sx={{
-              mb: 1,
-              backgroundColor: buttonClicked ? theme.palette.success.main : theme.palette.primary.main,
-              '&:hover': {
-                backgroundColor: buttonClicked ? theme.palette.success.dark : theme.palette.primary.dark,
-              },
-              fontSize: '0.75rem',
-              py: 0.5,
-              transition: 'all 0.3s ease',
-            }}
-          >
-            {buttonClicked ? 'Installing...' : 'Install App'}
-          </Button>
-        </Tooltip>
         <Typography variant="caption" sx={{ color: theme.palette.text.secondary, textAlign: 'center', display: 'block' }}>
           © 2024 Elite Car Detailing
         </Typography>
@@ -421,4 +343,5 @@ const Sidebar = ({ open, onToggle }) => {
   );
 };
 
-export default Sidebar; 
+export default EmployeeSidebar;
+

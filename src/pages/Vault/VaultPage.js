@@ -95,6 +95,21 @@ const VaultPage = () => {
         const data = snapshot.docs.map(doc => ({ id: doc.id, ...doc.data() }));
         console.log('🔍 VaultPage: Vault entries loaded:', data.length);
         console.log('🔍 VaultPage: Sample vault entries:', data.slice(0, 3));
+        
+        // Debug invoice information in vault entries
+        const entriesWithInvoices = data.filter(entry => entry.invoiceId || entry.invoiceNumber);
+        console.log('🔍 VaultPage: Entries with invoice info:', entriesWithInvoices.length);
+        entriesWithInvoices.forEach(entry => {
+          console.log('🔍 Invoice info:', {
+            id: entry.id,
+            type: entry.type,
+            invoiceId: entry.invoiceId,
+            invoiceNumber: entry.invoiceNumber,
+            customerName: entry.customerName,
+            description: entry.description
+          });
+        });
+        
         setVaultEntries(data);
         setLoading(false);
       },
@@ -272,6 +287,24 @@ const VaultPage = () => {
     if (!categoryId) return '#1976d2';
     const category = expenseCategories.find(cat => cat.id === categoryId);
     return category ? category.color : '#1976d2';
+  };
+
+  // Helper function to get invoice number from vault entry
+  const getInvoiceDisplay = (entry) => {
+    if (entry.invoiceNumber) {
+      return entry.invoiceNumber;
+    }
+    
+    // If no invoice number but has invoice ID, try to find it in the invoices list
+    if (entry.invoiceId) {
+      const invoice = invoices.find(inv => inv.id === entry.invoiceId);
+      if (invoice && invoice.invoiceNumber) {
+        return invoice.invoiceNumber;
+      }
+      return `ID: ${entry.invoiceId}`;
+    }
+    
+    return 'N/A';
   };
 
   // Calculate totals
@@ -671,6 +704,19 @@ const VaultPage = () => {
         </Grid>
       </Paper>
 
+      {/* Debug Information */}
+      {vaultEntries.length > 0 && (
+        <Alert severity="info" sx={{ mb: 2 }}>
+          <Typography variant="body2" gutterBottom>
+            <strong>Debug Info:</strong> Found {vaultEntries.length} vault entries. 
+            Check browser console for detailed invoice information.
+          </Typography>
+          <Typography variant="caption" display="block">
+            Entries with invoice info: {vaultEntries.filter(entry => entry.invoiceId || entry.invoiceNumber).length}
+          </Typography>
+        </Alert>
+      )}
+
       {/* Vault Entries Table */}
       {filteredEntries.length === 0 ? (
         <Box sx={{ textAlign: 'center', py: 8 }}>
@@ -762,7 +808,7 @@ const VaultPage = () => {
                   </TableCell>
                   <TableCell>
                     <Typography variant="body2">
-                      {entry.invoiceNumber || 'N/A'}
+                      {getInvoiceDisplay(entry)}
                     </Typography>
                   </TableCell>
                   <TableCell>

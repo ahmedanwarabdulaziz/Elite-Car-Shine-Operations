@@ -64,6 +64,7 @@ const CorporateSettlementPage = () => {
   const [invoices, setInvoices] = useState([]);
   const [selectedInvoices, setSelectedInvoices] = useState([]);
   const [paymentMethods, setPaymentMethods] = useState([]);
+  const [bankAccounts, setBankAccounts] = useState([]);
   const [loading, setLoading] = useState(false);
   const [settlementDialog, setSettlementDialog] = useState({ open: false, data: null });
   const [expandedFilters, setExpandedFilters] = useState(false);
@@ -84,13 +85,16 @@ const CorporateSettlementPage = () => {
     paymentMethod: '',
     notes: '',
     referenceNumber: '',
-    settlementDate: new Date().toISOString().split('T')[0]
+    settlementDate: new Date().toISOString().split('T')[0],
+    settlementLocation: 'vault',
+    bankAccount: ''
   });
 
   // Load data on component mount
   useEffect(() => {
     loadCorporateCustomers();
     loadPaymentMethods();
+    loadBankAccounts();
   }, []);
 
   // Load invoices when customer or filters change
@@ -124,6 +128,18 @@ const CorporateSettlementPage = () => {
     } catch (error) {
       console.error('Error loading payment methods:', error);
       showError('Failed to load payment methods');
+    }
+  };
+
+  const loadBankAccounts = async () => {
+    try {
+      const bankAccountsRef = collection(db, 'bankAccounts');
+      const snapshot = await getDocs(bankAccountsRef);
+      const accounts = snapshot.docs.map(doc => ({ id: doc.id, ...doc.data() }));
+      setBankAccounts(accounts.filter(account => account.isActive));
+    } catch (error) {
+      console.error('Error loading bank accounts:', error);
+      showError('Failed to load bank accounts');
     }
   };
 
@@ -253,7 +269,9 @@ const CorporateSettlementPage = () => {
       paymentMethod: '',
       notes: '',
       referenceNumber: '',
-      settlementDate: new Date().toISOString().split('T')[0]
+      settlementDate: new Date().toISOString().split('T')[0],
+      settlementLocation: 'vault',
+      bankAccount: ''
     });
   };
 
@@ -265,23 +283,34 @@ const CorporateSettlementPage = () => {
   };
 
   const handleConfirmSettlement = async () => {
-    try {
-      const { invoices: selectedInvoicesData, totalAmount, customer } = settlementDialog.data;
-      
-      // Validate form
-      if (!settlementForm.paymentMethod) {
-        showError('Please select a payment method');
-        return;
+    const { invoices: selectedInvoicesData, totalAmount } = settlementDialog.data;
+    
+    // Validate form
+    if (!settlementForm.paymentMethod) {
+      showError('Please select a payment method');
+      return;
+    }
+
+    if (settlementForm.settlementLocation === 'bank' && !settlementForm.bankAccount) {
+      showError('Please select a bank account');
+      return;
+    }
+
+    // Show confirmation dialog
+    showConfirm({
+      title: 'Confirm Settlement',
+      message: `Are you sure you want to settle ${selectedInvoicesData.length} invoices for a total of $${totalAmount.toFixed(2)}?`,
+      onConfirm: processSettlement,
+      onCancel: () => {
+        console.log('Settlement cancelled');
       }
+    });
+  };
 
-      const confirmed = await showConfirm(
-        'Confirm Settlement',
-        `Are you sure you want to settle ${selectedInvoicesData.length} invoices for a total of $${totalAmount.toFixed(2)}?`
-      );
-
-      if (!confirmed) return;
-
+  const processSettlement = async () => {
+    try {
       setLoading(true);
+      const { invoices: selectedInvoicesData, totalAmount, customer } = settlementDialog.data;
 
       // Create settlement record
       const settlementData = {
@@ -290,6 +319,8 @@ const CorporateSettlementPage = () => {
         settlementDate: new Date(settlementForm.settlementDate),
         totalAmount,
         paymentMethod: settlementForm.paymentMethod,
+        settlementLocation: settlementForm.settlementLocation,
+        bankAccountId: settlementForm.settlementLocation === 'bank' ? settlementForm.bankAccount : null,
         settlementType: 'bulk',
         invoices: selectedInvoicesData.map(invoice => ({
           invoiceId: invoice.id,
@@ -326,8 +357,12 @@ const CorporateSettlementPage = () => {
           reference: settlementForm.referenceNumber,
           settlementId: settlementRef.id,
           invoiceId: invoice.id,
+          invoiceNumber: invoice.invoiceNumber,
           customerId: selectedCustomer,
           customerName: customer?.name,
+          location: settlementForm.settlementLocation,
+          bankAccountId: settlementForm.settlementLocation === 'bank' ? settlementForm.bankAccount : null,
+          paymentMethod: settlementForm.paymentMethod,
           createdAt: new Date(),
           createdBy: 'current_user'
         };
@@ -683,6 +718,44 @@ const CorporateSettlementPage = () => {
                 </Grid>
 
                 <Grid item xs={12} sm={6}>
+                  <FormControl fullWidth required>
+                    <InputLabel>Settlement Location</InputLabel>
+                    <Select
+                      value={settlementForm.settlementLocation}
+                      onChange={(e) => {
+                        handleSettlementFormChange('settlementLocation', e.target.value);
+                        if (e.target.value === 'vault') {
+                          handleSettlementFormChange('bankAccount', '');
+                        }
+                      }}
+                      label="Settlement Location"
+                    >
+                      <MenuItem value="vault">Vault (Cash)</MenuItem>
+                      <MenuItem value="bank">Bank Account</MenuItem>
+                    </Select>
+                  </FormControl>
+                </Grid>
+
+                {settlementForm.settlementLocation === 'bank' && (
+                  <Grid item xs={12} sm={6}>
+                    <FormControl fullWidth required>
+                      <InputLabel>Bank Account</InputLabel>
+                      <Select
+                        value={settlementForm.bankAccount}
+                        onChange={(e) => handleSettlementFormChange('bankAccount', e.target.value)}
+                        label="Bank Account"
+                      >
+                        {bankAccounts.map((account) => (
+                          <MenuItem key={account.id} value={account.id}>
+                            {account.name} - {account.bankName}
+                          </MenuItem>
+                        ))}
+                      </Select>
+                    </FormControl>
+                  </Grid>
+                )}
+
+                <Grid item xs={12} sm={6}>
                   <TextField
                     fullWidth
                     label="Settlement Date"
@@ -762,7 +835,7 @@ const CorporateSettlementPage = () => {
           <Button
             onClick={handleConfirmSettlement}
             variant="contained"
-            disabled={loading || !settlementForm.paymentMethod}
+            disabled={loading || !settlementForm.paymentMethod || (settlementForm.settlementLocation === 'bank' && !settlementForm.bankAccount)}
             startIcon={loading ? <CircularProgress size={20} /> : <PaymentIcon />}
           >
             {loading ? 'Processing...' : 'Confirm Settlement'}

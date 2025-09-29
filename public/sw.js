@@ -1,5 +1,5 @@
 // Elite Car Shine - Employee Portal Service Worker
-const CACHE_NAME = 'elite-car-shine-employee-v1';
+const CACHE_NAME = 'elite-car-shine-employee-v2';
 const urlsToCache = [
   '/',
   '/employee/dashboard',
@@ -8,8 +8,16 @@ const urlsToCache = [
   '/work-orders-dashboard',
   '/static/js/bundle.js',
   '/static/css/main.css',
-  '/manifest.json'
+  '/manifest.json',
+  '/sw.js'
 ];
+
+// Enhanced cache strategy for Android/Huawei devices
+const CACHE_STRATEGIES = {
+  CACHE_FIRST: ['/employee/dashboard', '/work-orders', '/work-orders-dashboard'],
+  NETWORK_FIRST: ['/api/', '/firebase/'],
+  STALE_WHILE_REVALIDATE: ['/static/', '/assets/']
+};
 
 // Install event - cache resources
 self.addEventListener('install', (event) => {
@@ -43,49 +51,100 @@ self.addEventListener('activate', (event) => {
   );
 });
 
-// Fetch event - serve cached content when offline
+// Enhanced fetch event with Android/Huawei optimizations
 self.addEventListener('fetch', (event) => {
   // Skip cross-origin requests
   if (!event.request.url.startsWith(self.location.origin)) {
     return;
   }
 
-  event.respondWith(
-    caches.match(event.request)
-      .then((response) => {
-        // Return cached version or fetch from network
-        if (response) {
-          console.log('Service Worker: Serving from cache', event.request.url);
-          return response;
-        }
+  const url = new URL(event.request.url);
+  const pathname = url.pathname;
 
-        console.log('Service Worker: Fetching from network', event.request.url);
-        return fetch(event.request)
-          .then((response) => {
-            // Don't cache if not a valid response
-            if (!response || response.status !== 200 || response.type !== 'basic') {
-              return response;
-            }
+  // Determine cache strategy based on URL
+  let strategy = 'NETWORK_FIRST'; // default
+  if (CACHE_STRATEGIES.CACHE_FIRST.some(path => pathname.includes(path))) {
+    strategy = 'CACHE_FIRST';
+  } else if (CACHE_STRATEGIES.NETWORK_FIRST.some(path => pathname.includes(path))) {
+    strategy = 'NETWORK_FIRST';
+  } else if (CACHE_STRATEGIES.STALE_WHILE_REVALIDATE.some(path => pathname.includes(path))) {
+    strategy = 'STALE_WHILE_REVALIDATE';
+  }
 
-            // Clone the response
-            const responseToCache = response.clone();
-
-            caches.open(CACHE_NAME)
-              .then((cache) => {
-                cache.put(event.request, responseToCache);
-              });
-
-            return response;
-          })
-          .catch(() => {
-            // If offline and no cache, show offline page for navigation requests
-            if (event.request.destination === 'document') {
-              return caches.match('/employee/dashboard');
-            }
-          });
-      })
-  );
+  event.respondWith(handleRequest(event.request, strategy));
 });
+
+async function handleRequest(request, strategy) {
+  const cache = await caches.open(CACHE_NAME);
+  
+  switch (strategy) {
+    case 'CACHE_FIRST':
+      return cacheFirst(request, cache);
+    case 'NETWORK_FIRST':
+      return networkFirst(request, cache);
+    case 'STALE_WHILE_REVALIDATE':
+      return staleWhileRevalidate(request, cache);
+    default:
+      return networkFirst(request, cache);
+  }
+}
+
+async function cacheFirst(request, cache) {
+  const cachedResponse = await cache.match(request);
+  if (cachedResponse) {
+    console.log('Service Worker: Serving from cache (cache-first)', request.url);
+    return cachedResponse;
+  }
+  
+  try {
+    const networkResponse = await fetch(request);
+    if (networkResponse.status === 200) {
+      cache.put(request, networkResponse.clone());
+    }
+    return networkResponse;
+  } catch (error) {
+    console.log('Service Worker: Network failed, no cache available', request.url);
+    // Return offline page for navigation requests
+    if (request.destination === 'document') {
+      return cache.match('/employee/dashboard');
+    }
+    throw error;
+  }
+}
+
+async function networkFirst(request, cache) {
+  try {
+    const networkResponse = await fetch(request);
+    if (networkResponse.status === 200) {
+      cache.put(request, networkResponse.clone());
+    }
+    return networkResponse;
+  } catch (error) {
+    console.log('Service Worker: Network failed, trying cache', request.url);
+    const cachedResponse = await cache.match(request);
+    if (cachedResponse) {
+      return cachedResponse;
+    }
+    // Return offline page for navigation requests
+    if (request.destination === 'document') {
+      return cache.match('/employee/dashboard');
+    }
+    throw error;
+  }
+}
+
+async function staleWhileRevalidate(request, cache) {
+  const cachedResponse = await cache.match(request);
+  
+  const fetchPromise = fetch(request).then(networkResponse => {
+    if (networkResponse.status === 200) {
+      cache.put(request, networkResponse.clone());
+    }
+    return networkResponse;
+  }).catch(() => cachedResponse);
+  
+  return cachedResponse || fetchPromise;
+}
 
 // Background sync for offline form submissions
 self.addEventListener('sync', (event) => {

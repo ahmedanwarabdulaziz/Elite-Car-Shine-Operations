@@ -40,6 +40,7 @@ import EmployeeDashboard from './pages/EmployeeDashboard';
 import LoginPage from './pages/LoginPage';
 import DataManagementPage from './pages/DataManagement/DataManagementPage';
 import PricingManagementPage from './pages/PricingManagement/PricingManagementPage';
+import AuditPage from './pages/Audit/AuditPage';
 import { auth } from './firebase/config';
 import { onAuthStateChanged } from 'firebase/auth';
 
@@ -159,9 +160,10 @@ function AppRouter() {
           <Route path="/expenses" element={<ExpensesPage />} />
           <Route path="/payment-reports" element={<PaymentReportsPage />} />
           <Route path="/corporate-settlement" element={<CorporateSettlementPage />} />
-          <Route path="/data-management" element={<DataManagementPage />} />
-          <Route path="/pricing-management" element={<PricingManagementPage />} />
-          <Route path="/employee/*" element={<EmployeeDashboard />} />
+        <Route path="/data-management" element={<DataManagementPage />} />
+        <Route path="/pricing-management" element={<PricingManagementPage />} />
+        <Route path="/audit" element={<AuditPage />} />
+        <Route path="/employee/*" element={<EmployeeDashboard />} />
         </Routes>
       </EmployeeLayout>
     );
@@ -205,6 +207,7 @@ function AppRouter() {
         <Route path="/corporate-settlement" element={<CorporateSettlementPage />} />
         <Route path="/data-management" element={<DataManagementPage />} />
         <Route path="/pricing-management" element={<PricingManagementPage />} />
+        <Route path="/audit" element={<AuditPage />} />
       </Routes>
     </MainLayout>
   );

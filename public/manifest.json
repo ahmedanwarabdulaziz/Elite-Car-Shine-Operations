@@ -1,6 +1,7 @@
 {
   "short_name": "Elite Car Shine",
   "name": "Elite Car Shine - Employee Portal",
+  "id": "/",
   "icons": [
     {
       "src": "data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 100 100'%3E%3Crect width='100' height='100' fill='%231976d2' rx='20'/%3E%3Ctext x='50' y='60' text-anchor='middle' fill='white' font-size='50'%3E🚗%3C/text%3E%3C/svg%3E",
@@ -54,6 +55,8 @@
   "start_url": "/employee/dashboard",
   "display": "standalone",
   "orientation": "portrait-primary",
+  "dir": "ltr",
+  "lang": "en-US",
   "theme_color": "#1976d2",
   "background_color": "#ffffff",
   "description": "Elite Car Shine Employee Portal - Professional car detailing management system",
@@ -68,6 +71,19 @@
       "sizes": "360x640",
       "type": "image/svg+xml",
       "form_factor": "narrow"
+    }
+  ],
+  "edge_side_panel": {
+    "preferred_width": 400
+  },
+  "launch_handler": {
+    "client_mode": "navigate-existing"
+  },
+  "handle_links": "preferred",
+  "protocol_handlers": [
+    {
+      "protocol": "web+elitecar",
+      "url": "/employee/dashboard?action=%s"
     }
   ]
 } 

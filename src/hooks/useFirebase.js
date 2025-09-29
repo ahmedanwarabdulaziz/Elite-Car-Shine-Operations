@@ -1,10 +1,54 @@
 import { useState, useEffect, useCallback, useRef } from 'react';
 import { collection, getDocs, addDoc, updateDoc, deleteDoc, doc, query, orderBy, where, limit, onSnapshot } from 'firebase/firestore';
-import { db } from '../firebase/config';
+import { db, auth } from '../firebase/config';
 
 // Cache for storing fetched data
 const cache = new Map();
 const CACHE_DURATION = 5 * 60 * 1000; // 5 minutes
+
+// Get current user context for audit trails
+const getCurrentUser = () => {
+  try {
+    // Check for employee session first
+    const employeeSession = sessionStorage.getItem('employeeUser');
+    if (employeeSession) {
+      const employee = JSON.parse(employeeSession);
+      return {
+        id: employee.id,
+        name: employee.name,
+        type: 'employee',
+        department: employee.department,
+        email: employee.email
+      };
+    }
+    
+    // Check for admin Firebase auth
+    if (auth.currentUser) {
+      return {
+        id: auth.currentUser.uid,
+        name: auth.currentUser.displayName || auth.currentUser.email,
+        type: 'admin',
+        email: auth.currentUser.email
+      };
+    }
+    
+    // Fallback for system operations
+    return {
+      id: 'system',
+      name: 'System',
+      type: 'system',
+      email: 'system@elite.com'
+    };
+  } catch (error) {
+    console.error('Error getting current user:', error);
+    return {
+      id: 'unknown',
+      name: 'Unknown User',
+      type: 'unknown',
+      email: 'unknown@elite.com'
+    };
+  }
+};
 
 // Hook for Firebase operations with caching and performance optimization
 const useFirebase = (collectionName) => {
@@ -163,10 +207,15 @@ const useFirebase = (collectionName) => {
   // Add document with cache invalidation
   const addDocument = useCallback(async (documentData) => {
     try {
+      const currentUser = getCurrentUser();
+      const now = new Date();
+      
       const docRef = await addDoc(collection(db, collectionName), {
         ...documentData,
-        createdAt: new Date(),
-        updatedAt: new Date(),
+        createdBy: currentUser,
+        updatedBy: currentUser,
+        createdAt: now,
+        updatedAt: now,
       });
       
       // Clear cache to force refresh
@@ -182,9 +231,13 @@ const useFirebase = (collectionName) => {
   // Update document with cache invalidation
   const updateDocument = useCallback(async (documentId, updateData) => {
     try {
+      const currentUser = getCurrentUser();
+      const now = new Date();
+      
       await updateDoc(doc(db, collectionName, documentId), {
         ...updateData,
-        updatedAt: new Date(),
+        updatedBy: currentUser,
+        updatedAt: now,
       });
       
       // Clear cache to force refresh
@@ -211,10 +264,14 @@ const useFirebase = (collectionName) => {
   // Batch operations for better performance
   const batchUpdate = useCallback(async (updates) => {
     try {
+      const currentUser = getCurrentUser();
+      const now = new Date();
+      
       const promises = updates.map(({ id, data }) => 
         updateDoc(doc(db, collectionName, id), {
           ...data,
-          updatedAt: new Date(),
+          updatedBy: currentUser,
+          updatedAt: now,
         })
       );
       

@@ -7,6 +7,14 @@
     <meta name="apple-mobile-web-app-capable" content="yes" />
     <meta name="apple-mobile-web-app-status-bar-style" content="default" />
     <meta name="apple-mobile-web-app-title" content="Elite Car Shine" />
+    <!-- Android/Huawei PWA meta tags -->
+    <meta name="mobile-web-app-capable" content="yes" />
+    <meta name="application-name" content="Elite Car Shine" />
+    <meta name="msapplication-TileColor" content="#1976d2" />
+    <meta name="msapplication-tap-highlight" content="no" />
+    <!-- Huawei AppGallery meta tags -->
+    <meta name="huawei-mobile-web-app-capable" content="yes" />
+    <meta name="huawei-mobile-web-app-status-bar-style" content="default" />
     <meta
       name="description"
       content="Elite Car Shine Employee Portal - Mobile access for field workers"
@@ -40,51 +48,17 @@
         });
       }
       
-      // Handle PWA install prompt
-      let deferredPrompt;
+      // Enhanced PWA install detection for Android/Huawei
       window.addEventListener('beforeinstallprompt', (e) => {
-        e.preventDefault();
-        deferredPrompt = e;
-        
-        // Show install button or banner
-        const installButton = document.createElement('button');
-        installButton.textContent = 'Install App';
-        installButton.style.cssText = `
-          position: fixed;
-          bottom: 20px;
-          right: 20px;
-          background: #1976d2;
-          color: white;
-          border: none;
-          padding: 12px 20px;
-          border-radius: 8px;
-          font-size: 14px;
-          cursor: pointer;
-          box-shadow: 0 4px 12px rgba(0,0,0,0.3);
-          z-index: 1000;
-        `;
-        
-        installButton.addEventListener('click', () => {
-          deferredPrompt.prompt();
-          deferredPrompt.userChoice.then((choiceResult) => {
-            if (choiceResult.outcome === 'accepted') {
-              console.log('User accepted the install prompt');
-            } else {
-              console.log('User dismissed the install prompt');
-            }
-            deferredPrompt = null;
-            installButton.remove();
-          });
-        });
-        
-        document.body.appendChild(installButton);
-        
-        // Auto-hide after 10 seconds
-        setTimeout(() => {
-          if (installButton.parentNode) {
-            installButton.remove();
-          }
-        }, 10000);
+        // Store the event for later use by React component
+        window.deferredPrompt = e;
+        console.log('PWA install prompt available');
+      });
+      
+      // Track app installation
+      window.addEventListener('appinstalled', () => {
+        console.log('PWA was installed');
+        window.deferredPrompt = null;
       });
     </script>
   </body>
